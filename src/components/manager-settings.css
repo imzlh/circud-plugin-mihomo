@@ -1,0 +1,319 @@
+.manager-settings-content {
+  min-width: 0;
+}
+.manager-status-line {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 32px;
+  padding-bottom: 14px;
+}
+.manager-status-line > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.manager-status-title {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.manager-refresh {
+  margin-left: auto;
+}
+.manager-message {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  padding: 8px 11px;
+  border-left: 2px solid currentColor;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.manager-message.error {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.manager-message.success {
+  color: var(--green);
+  background: var(--green-soft);
+}
+.manager-message.preview {
+  color: var(--muted);
+  background: var(--subtle);
+}
+.manager-preview-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.manager-preview-fields:disabled {
+  opacity: 0.78;
+}
+.manager-block {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.manager-block:last-child {
+  padding-bottom: 0;
+}
+.manager-block-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.manager-block-heading strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.manager-block-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.manager-revision {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.manager-actions .button {
+  justify-content: center;
+  min-width: 78px;
+}
+.manager-schedule-block .manager-block-heading > svg {
+  color: var(--accent);
+}
+.manager-schedule-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  align-items: center;
+  gap: 18px;
+}
+.manager-schedule-controls .manager-toggle-row {
+  padding: 0;
+  border: 0;
+}
+.manager-schedule-time {
+  display: grid;
+  gap: 7px;
+}
+.manager-schedule-time > span,
+.manager-weekdays legend {
+  font-size: 11px;
+  font-weight: 600;
+}
+.manager-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+}
+.manager-weekdays legend {
+  width: 100%;
+  margin-bottom: 1px;
+}
+.manager-weekdays label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 38px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.manager-weekdays label:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.manager-weekdays input {
+  margin: 0;
+}
+.manager-schedule-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.manager-danger {
+  color: var(--red);
+}
+.manager-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.manager-mode-grid .form-field {
+  display: grid;
+  gap: 7px;
+}
+.manager-mode-grid .form-field > span {
+  font-size: 11px;
+  font-weight: 600;
+}
+.manager-mode-grid .field {
+  width: 100%;
+}
+.manager-tun-grid {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--subtle) 55%, transparent);
+}
+.manager-tun-grid .manager-toggle-row {
+  padding: 0;
+  border: 0;
+}
+.manager-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+.manager-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.manager-toggle-row:nth-child(odd) {
+  padding-right: 18px;
+}
+.manager-toggle-row:nth-child(even) {
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+}
+.manager-toggle-row > div {
+  display: grid;
+  min-width: 0;
+}
+.manager-toggle-row strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.manager-toggle-row span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.manager-toggle-row .toggle {
+  flex: none;
+}
+.manager-acl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+}
+.manager-acl-grid .form-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.manager-acl-grid .form-field > span {
+  font-size: 11px;
+  font-weight: 600;
+}
+.manager-acl-grid textarea {
+  min-height: 86px;
+  resize: vertical;
+  white-space: pre;
+  font:
+    11px/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.manager-acl-grid small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.manager-acl-wide {
+  grid-column: 1 / -1;
+}
+.manager-network-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+}
+.manager-save {
+  flex: none;
+}
+.manager-empty {
+  padding: 12px 0;
+  font-size: 12px;
+}
+.manager-capabilities .manager-block-heading {
+  align-items: center;
+}
+.manager-capabilities .manager-block-heading > svg {
+  color: var(--green);
+}
+.manager-capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+@media (max-width: 700px) {
+  .manager-status-line {
+    flex-wrap: wrap;
+    gap: 9px 14px;
+  }
+  .manager-refresh {
+    margin-left: 0;
+  }
+  .manager-network-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 520px) {
+  .manager-mode-grid,
+  .manager-toggle-grid,
+  .manager-acl-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .manager-acl-wide {
+    grid-column: auto;
+  }
+  .manager-toggle-row:nth-child(odd),
+  .manager-toggle-row:nth-child(even) {
+    padding-right: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .manager-save {
+    width: 100%;
+    justify-content: center;
+  }
+  .manager-schedule-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

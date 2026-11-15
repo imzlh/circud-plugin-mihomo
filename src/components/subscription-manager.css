@@ -1,0 +1,147 @@
+.subscription-manager {
+  padding: 16px;
+}
+.subscription-heading,
+.subscription-title-line,
+.subscription-item,
+.subscription-actions {
+  display: flex;
+  align-items: center;
+}
+.subscription-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.subscription-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+.subscription-title-line {
+  gap: 8px;
+}
+.subscription-title-line > svg {
+  color: var(--accent);
+}
+.subscription-heading p,
+.subscription-empty,
+.subscription-loading {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.subscription-loading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 14px;
+}
+.subscription-empty {
+  padding: 14px 0 2px;
+}
+.subscription-list {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.subscription-item {
+  align-items: flex-start;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+.subscription-checkbox {
+  margin-top: 5px;
+  accent-color: var(--accent);
+  flex: none;
+}
+.subscription-copy {
+  min-width: 0;
+  flex: 1;
+}
+.subscription-copy > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.subscription-copy strong {
+  font-size: 12px;
+}
+.subscription-copy > span,
+.subscription-copy > small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.subscription-copy > p {
+  margin: 7px 0 0;
+  color: var(--red);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.subscription-actions {
+  gap: 6px;
+  flex: none;
+}
+.subscription-delete {
+  color: var(--red);
+}
+.subscription-form {
+  display: grid;
+  gap: 14px;
+}
+.subscription-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+}
+.subscription-form label > small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.subscription-target {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.subscription-target legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.subscription-target label {
+  display: flex;
+  align-items: center;
+  grid-template-columns: auto 1fr;
+  gap: 7px;
+}
+.subscription-target input {
+  accent-color: var(--accent);
+}
+@media (max-width: 620px) {
+  .subscription-heading,
+  .subscription-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .subscription-heading > .button {
+    align-self: flex-start;
+  }
+  .subscription-heading-actions {
+    justify-content: flex-start;
+  }
+  .subscription-actions {
+    justify-content: flex-end;
+  }
+}

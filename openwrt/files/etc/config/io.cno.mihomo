@@ -1,0 +1,5 @@
+config daemon 'main'
+	option enabled '1'
+
+config network 'main'
+	option enabled '0'

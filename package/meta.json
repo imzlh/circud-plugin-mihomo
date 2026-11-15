@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "io.cno.mihomo",
+  "name": "CNO Mihomo Manager",
+  "version": "0.1.0",
+  "entry": "management.bundle.min.js",
+  "acceptPackageCalls": false,
+  "shutdownTimeoutMs": 5000,
+  "prefix": "/io.cno.mihomo",
+  "permissions": {
+    "read": ["/etc/io.cno.mihomo/controller.secret", "/usr/sbin/cno-mihomoctl"],
+    "write": [],
+    "env": [],
+    "net": true,
+    "run": true,
+    "ffi": false,
+    "sys": false
+  }
+}

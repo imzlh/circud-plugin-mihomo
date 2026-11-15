@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/cno run /usr/lib/io.cno.mihomo/ctl.ts "$@"

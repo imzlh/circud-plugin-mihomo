@@ -1,0 +1,10 @@
+#!/bin/sh
+
+[ "$ACTION" = reload ] || [ "$ACTION" = restart ] || [ "$ACTION" = start ] || exit 0
+[ -S /var/run/io.cno.mihomo/control.sock ] || exit 0
+
+(
+	printf '%s\n' '{}' | /usr/sbin/cno-mihomoctl network.reconcile >/dev/null 2>&1
+) &
+
+exit 0

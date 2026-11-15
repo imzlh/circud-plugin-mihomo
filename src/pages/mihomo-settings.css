@@ -1,0 +1,97 @@
+.mihomo-settings-page {
+  display: grid;
+  gap: 0;
+}
+.mihomo-settings-heading {
+  align-items: flex-start;
+}
+.mihomo-settings-heading > div {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 240px;
+}
+.mihomo-settings-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+.mihomo-settings-heading > .button {
+  margin-left: auto;
+}
+.mihomo-settings-preview,
+.mihomo-settings-message {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border-left: 2px solid currentColor;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.mihomo-settings-preview {
+  color: var(--muted);
+  background: var(--subtle);
+}
+.mihomo-settings-message.error {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.mihomo-settings-message.success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  background: var(--green-soft);
+}
+.mihomo-editor-modes {
+  width: fit-content;
+  margin: 0 0 12px;
+}
+.mihomo-editor-modes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mihomo-source-editor {
+  display: grid;
+  gap: 8px;
+}
+.mihomo-source-editor > span {
+  font-size: 12px;
+  font-weight: 600;
+}
+.mihomo-source-editor textarea {
+  min-height: 360px;
+  resize: vertical;
+  white-space: pre;
+  font:
+    12px/1.65 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.mihomo-settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+}
+.mihomo-settings-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+@media (max-width: 620px) {
+  .mihomo-settings-heading > .button {
+    margin-left: 25px;
+  }
+  .mihomo-settings-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mihomo-settings-footer .button {
+    justify-content: center;
+  }
+}

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+mkdir -p /var/lib/io.cno.mihomo/generations /var/lib/io.cno.mihomo/runtime /var/run/io.cno.mihomo
+chmod 0700 /var/lib/io.cno.mihomo /var/lib/io.cno.mihomo/generations /var/lib/io.cno.mihomo/runtime /var/run/io.cno.mihomo
+chmod 0600 /etc/io.cno.mihomo/daemon.json /etc/io.cno.mihomo/firewall.nft
+[ ! -e /etc/io.cno.mihomo/controller.secret ] || chmod 0600 /etc/io.cno.mihomo/controller.secret
+if [ ! -s /etc/io.cno.mihomo/controller.secret ]; then
+	(umask 077; od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > /etc/io.cno.mihomo/controller.secret)
+fi
+chmod 0600 /etc/io.cno.mihomo/controller.secret
+
+/etc/init.d/cno-mihomod enable
+
+exit 0

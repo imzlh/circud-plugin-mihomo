@@ -1,0 +1,187 @@
+.mixin-manager {
+  padding: 16px;
+}
+.mixin-heading,
+.mixin-title-line,
+.mixin-resource,
+.mixin-resource-actions {
+  display: flex;
+  align-items: center;
+}
+.mixin-heading {
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.mixin-heading > div:first-child {
+  margin-right: auto;
+}
+.mixin-title-line {
+  gap: 8px;
+}
+.mixin-title-line > svg {
+  color: var(--accent);
+}
+.mixin-heading p,
+.mixin-empty {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.mixin-empty {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 0 2px;
+}
+.mixin-library {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mixin-resource {
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.mixin-copy {
+  min-width: 0;
+  flex: 1;
+}
+.mixin-copy > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mixin-copy strong {
+  font-size: 12px;
+}
+.mixin-copy small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.mixin-resource-actions {
+  gap: 6px;
+  flex: none;
+}
+.mixin-delete {
+  color: var(--red);
+}
+.mixin-chain {
+  margin-top: 15px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--subtle) 55%, transparent);
+}
+.mixin-chain > div {
+  display: grid;
+  gap: 4px;
+}
+.mixin-chain > div strong {
+  font-size: 12px;
+}
+.mixin-chain > div small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.mixin-chain ol {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mixin-chain li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.mixin-chain li.disabled {
+  opacity: 0.58;
+}
+.mixin-chain li > span {
+  width: 20px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+.mixin-chain li > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.mixin-chain li strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mixin-chain li small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.mixin-form {
+  display: grid;
+  gap: 15px;
+}
+.mixin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mixin-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+}
+.mixin-description {
+  grid-column: 1 / -1;
+}
+.mixin-content-label {
+  min-width: 0;
+}
+.mixin-editor-modes {
+  justify-self: start;
+}
+.mixin-code.field {
+  width: 100%;
+  min-height: 260px;
+  max-height: 52vh;
+  resize: vertical;
+  white-space: pre;
+  overflow: auto;
+  font:
+    12px/1.7 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  tab-size: 2;
+}
+@media (max-width: 680px) {
+  .mixin-heading,
+  .mixin-resource {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mixin-resource-actions {
+    justify-content: flex-end;
+  }
+  .mixin-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .mixin-description {
+    grid-column: auto;
+  }
+}

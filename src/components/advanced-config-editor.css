@@ -1,0 +1,161 @@
+.advanced-config-editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.advanced-config-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--subtle);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.advanced-config-intro svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.advanced-config-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: clip;
+}
+.advanced-config-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+.advanced-config-section > summary::-webkit-details-marker {
+  display: none;
+}
+.advanced-config-section[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.advanced-config-section[open] > summary svg {
+  transform: rotate(180deg);
+}
+.advanced-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 13px;
+}
+.advanced-config-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.advanced-config-field > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.advanced-config-field label {
+  font-size: 11px;
+  font-weight: 550;
+}
+.advanced-config-field .field {
+  width: 100%;
+  min-width: 0;
+}
+.advanced-list-field {
+  min-height: 68px;
+  resize: vertical;
+  white-space: pre;
+  font:
+    11px/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.advanced-provider-editor {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 9px;
+}
+.advanced-protocol-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.advanced-mapping-field {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 9px;
+  min-width: 0;
+  padding-top: 4px;
+}
+.advanced-mapping-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.advanced-mapping-heading > div {
+  display: grid;
+  gap: 4px;
+}
+.advanced-mapping-heading strong {
+  font-size: 11px;
+}
+.advanced-mapping-heading small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.advanced-mapping-field textarea {
+  min-height: 120px;
+  resize: vertical;
+  white-space: pre;
+  font:
+    11px/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.advanced-mapping-field > span {
+  color: var(--red);
+  font-size: 11px;
+}
+.advanced-mapping-field > .button {
+  justify-self: end;
+}
+.advanced-provider-editor p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.advanced-provider-editor textarea {
+  min-height: 180px;
+  resize: vertical;
+  white-space: pre;
+  font:
+    11px/1.6 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.advanced-provider-editor > span,
+.advanced-config-error {
+  color: var(--red);
+  font-size: 11px;
+}
+.advanced-provider-editor .button {
+  justify-self: end;
+}
+@media (max-width: 700px) {
+  .advanced-config-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+artifacts/
+.verification/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+.DS_Store

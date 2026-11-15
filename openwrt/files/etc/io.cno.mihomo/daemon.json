@@ -1,0 +1,14 @@
+{
+  "controllerUrl": "http://127.0.0.1:9090",
+  "requireControllerHealth": true,
+  "healthTimeoutMs": 15000,
+  "shutdownTimeoutMs": 10000,
+  "redirectPort": 7892,
+  "tproxyPort": 7893,
+  "dnsPort": 1053,
+  "routeMark": 354,
+  "bypassMark": 355,
+  "routeTable": 162,
+  "ipv4RulePriority": 11062,
+  "ipv6RulePriority": 11063
+}
