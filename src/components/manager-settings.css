@@ -156,6 +156,11 @@
   gap: 12px;
   margin-top: 14px;
 }
+.manager-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .manager-danger {
   color: var(--red);
 }
@@ -175,6 +180,14 @@
 }
 .manager-mode-grid .field {
   width: 100%;
+}
+.manager-interception-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+.manager-interception-mode small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
 }
 .manager-tun-grid {
   padding: 12px;
@@ -312,6 +325,9 @@
   .manager-save {
     width: 100%;
     justify-content: center;
+  }
+  .manager-save-actions {
+    width: 100%;
   }
   .manager-schedule-controls {
     grid-template-columns: minmax(0, 1fr);

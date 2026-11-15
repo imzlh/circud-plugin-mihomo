@@ -23,6 +23,85 @@ interface AdvancedConfigEditorProps {
 
 type Path = readonly string[];
 
+const basePaths: Path[] = [
+  ["mode"],
+  ["log-level"],
+  ["find-process-mode"],
+  ["interface-name"],
+  ["ipv6"],
+  ["allow-lan"],
+  ["unified-delay"],
+  ["tcp-concurrent"],
+];
+const inboundPaths: Path[] = [
+  ["bind-address"],
+  ["port"],
+  ["socks-port"],
+  ["mixed-port"],
+  ["authentication"],
+  ["skip-auth-prefixes"],
+];
+const performancePaths: Path[] = [
+  ["disable-keep-alive"],
+  ["keep-alive-idle"],
+  ["keep-alive-interval"],
+  ["global-client-fingerprint"],
+  ["global-ua"],
+  ["etag-support"],
+  ["geosite-matcher"],
+];
+const dnsPaths: Path[] = [
+  ["dns", "enable"],
+  ["dns", "ipv6"],
+  ["dns", "enhanced-mode"],
+  ["dns", "cache-algorithm"],
+  ["dns", "fake-ip-range"],
+  ["dns", "fake-ip-range6"],
+  ["dns", "fake-ip-ttl"],
+  ["dns", "fake-ip-filter-mode"],
+  ["dns", "respect-rules"],
+  ["dns", "prefer-h3"],
+  ["dns", "use-system-hosts"],
+  ["dns", "use-hosts"],
+  ["dns", "direct-nameserver-follow-policy"],
+  ["dns", "default-nameserver"],
+  ["dns", "nameserver"],
+  ["dns", "proxy-server-nameserver"],
+  ["dns", "direct-nameserver"],
+  ["dns", "fallback"],
+  ["dns", "fake-ip-filter"],
+  ["dns", "nameserver-policy"],
+  ["dns", "proxy-server-nameserver-policy"],
+  ["dns", "fallback-filter"],
+  ["hosts"],
+];
+const snifferPaths: Path[] = [
+  ["sniffer", "enable"],
+  ["sniffer", "force-dns-mapping"],
+  ["sniffer", "parse-pure-ip"],
+  ["sniffer", "force-domain"],
+  ["sniffer", "skip-domain"],
+  ["sniffer", "skip-src-address"],
+  ["sniffer", "skip-dst-address"],
+  ...(["HTTP", "TLS", "QUIC"] as const).flatMap((protocol) => [
+    ["sniffer", "sniff", protocol, "port"],
+    ["sniffer", "sniff", protocol, "override-destination"],
+  ]),
+];
+const geoPaths: Path[] = [
+  ["profile", "store-selected"],
+  ["profile", "store-fake-ip"],
+  ["geodata-mode"],
+  ["geodata-loader"],
+  ["geo-auto-update"],
+  ["geo-update-interval"],
+  ["geox-url", "geosite"],
+  ["geox-url", "geoip"],
+  ["geox-url", "mmdb"],
+  ["geox-url", "asn"],
+];
+const providerPaths: Path[] = [["rule-providers"]];
+
 export function AdvancedConfigEditor({
   content,
   onChange,
@@ -44,6 +123,20 @@ export function AdvancedConfigEditor({
   function change(path: Path, value: JsonValue | undefined) {
     if (parsed.error) return;
     onChange(writeAdvancedConfig(setAdvancedValue(config, path, value)));
+  }
+
+  function clear(paths: readonly Path[]) {
+    if (parsed.error) return;
+    const next = paths.reduce(
+      (current, path) => setAdvancedValue(current, path, undefined),
+      config,
+    );
+    onChange(writeAdvancedConfig(next));
+  }
+
+  function count(paths: readonly Path[]): number {
+    return paths.filter((path) => advancedValue(config, path) !== undefined)
+      .length;
   }
 
   function saveProviders() {
@@ -81,7 +174,12 @@ export function AdvancedConfigEditor({
         </p>
       </div>
 
-      <Section title="常规" open>
+      <Section
+        title="基础"
+        count={count(basePaths)}
+        onClear={() => clear(basePaths)}
+        open
+      >
         <SelectField
           config={config}
           path={["mode"]}
@@ -120,6 +218,37 @@ export function AdvancedConfigEditor({
           label="出站接口"
           onChange={change}
         />
+        <BooleanField
+          config={config}
+          path={["ipv6"]}
+          label="IPv6"
+          onChange={change}
+        />
+        <BooleanField
+          config={config}
+          path={["allow-lan"]}
+          label="允许 LAN 监听"
+          onChange={change}
+        />
+        <BooleanField
+          config={config}
+          path={["unified-delay"]}
+          label="统一延迟"
+          onChange={change}
+        />
+        <BooleanField
+          config={config}
+          path={["tcp-concurrent"]}
+          label="TCP 并发"
+          onChange={change}
+        />
+      </Section>
+
+      <Section
+        title="入站与认证"
+        count={count(inboundPaths)}
+        onClear={() => clear(inboundPaths)}
+      >
         <TextField
           config={config}
           path={["bind-address"]}
@@ -156,30 +285,19 @@ export function AdvancedConfigEditor({
           label="入站认证（用户名:密码）"
           onChange={change}
         />
-        <BooleanField
+        <ListField
           config={config}
-          path={["ipv6"]}
-          label="IPv6"
+          path={["skip-auth-prefixes"]}
+          label="免认证网段"
           onChange={change}
         />
-        <BooleanField
-          config={config}
-          path={["allow-lan"]}
-          label="允许 LAN 监听"
-          onChange={change}
-        />
-        <BooleanField
-          config={config}
-          path={["unified-delay"]}
-          label="统一延迟"
-          onChange={change}
-        />
-        <BooleanField
-          config={config}
-          path={["tcp-concurrent"]}
-          label="TCP 并发"
-          onChange={change}
-        />
+      </Section>
+
+      <Section
+        title="性能与兼容"
+        count={count(performancePaths)}
+        onClear={() => clear(performancePaths)}
+      >
         <BooleanField
           config={config}
           path={["disable-keep-alive"]}
@@ -202,9 +320,56 @@ export function AdvancedConfigEditor({
           max={86400}
           onChange={change}
         />
+        <SelectField
+          config={config}
+          path={["global-client-fingerprint"]}
+          label="全局 TLS 指纹"
+          onChange={change}
+        >
+          {[
+            "chrome",
+            "firefox",
+            "safari",
+            "iOS",
+            "android",
+            "edge",
+            "360",
+            "qq",
+            "random",
+          ].map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </SelectField>
+        <TextField
+          config={config}
+          path={["global-ua"]}
+          label="全局 User-Agent"
+          onChange={change}
+        />
+        <BooleanField
+          config={config}
+          path={["etag-support"]}
+          label="GeoX ETag 缓存"
+          onChange={change}
+        />
+        <SelectField
+          config={config}
+          path={["geosite-matcher"]}
+          label="Geosite Matcher"
+          onChange={change}
+        >
+          <option value="succinct">Succinct</option>
+          <option value="mph">MPH</option>
+        </SelectField>
       </Section>
 
-      <Section title="DNS">
+      <Section
+        title="DNS"
+        count={count(dnsPaths)}
+        onClear={() => clear(dnsPaths)}
+      >
         <BooleanField
           config={config}
           path={["dns", "enable"]}
@@ -348,6 +513,13 @@ export function AdvancedConfigEditor({
         />
         <MappingField
           config={config}
+          path={["dns", "fallback-filter"]}
+          label="Fallback Filter"
+          help="以 Mihomo fallback-filter 映射格式配置 geoip、geosite、ipcidr 与 domain。"
+          onChange={change}
+        />
+        <MappingField
+          config={config}
           path={["hosts"]}
           label="Hosts 映射"
           help="键为域名，值可以是一个地址或地址列表。"
@@ -355,7 +527,11 @@ export function AdvancedConfigEditor({
         />
       </Section>
 
-      <Section title="Sniffer">
+      <Section
+        title="Sniffer"
+        count={count(snifferPaths)}
+        onClear={() => clear(snifferPaths)}
+      >
         <BooleanField
           config={config}
           path={["sniffer", "enable"]}
@@ -386,6 +562,18 @@ export function AdvancedConfigEditor({
           label="跳过嗅探域名"
           onChange={change}
         />
+        <ListField
+          config={config}
+          path={["sniffer", "skip-src-address"]}
+          label="跳过源地址"
+          onChange={change}
+        />
+        <ListField
+          config={config}
+          path={["sniffer", "skip-dst-address"]}
+          label="跳过目标地址"
+          onChange={change}
+        />
         {(["HTTP", "TLS", "QUIC"] as const).map((protocol) => (
           <div className="advanced-protocol-fields" key={protocol}>
             <ListField
@@ -404,7 +592,11 @@ export function AdvancedConfigEditor({
         ))}
       </Section>
 
-      <Section title="缓存与 GeoX">
+      <Section
+        title="缓存与 GeoX"
+        count={count(geoPaths)}
+        onClear={() => clear(geoPaths)}
+      >
         <BooleanField
           config={config}
           path={["profile", "store-selected"]}
@@ -472,7 +664,15 @@ export function AdvancedConfigEditor({
         />
       </Section>
 
-      <Section title="Rule Provider">
+      <Section
+        title="Rule Provider"
+        count={count(providerPaths)}
+        onClear={() => {
+          setProviderDraft(null);
+          setProviderError("");
+          clear(providerPaths);
+        }}
+      >
         <div className="advanced-provider-editor">
           <p>
             以 Mihomo 的 <code>rule-providers</code>{" "}
@@ -567,10 +767,14 @@ function MappingField(props: FieldProps & { help: string }) {
 
 function Section({
   title,
+  count,
+  onClear,
   open = false,
   children,
 }: {
   title: string;
+  count: number;
+  onClear: () => void;
   open?: boolean;
   children: ReactNode;
 }) {
@@ -578,9 +782,20 @@ function Section({
     <details className="advanced-config-section" open={open}>
       <summary>
         <span>{title}</span>
+        {count > 0 && <small>{count} 项覆盖</small>}
         <ChevronDown size={15} />
       </summary>
-      <div className="advanced-config-grid">{children}</div>
+      <div className="advanced-config-section-body">
+        {count > 0 && (
+          <div className="advanced-config-section-tools">
+            <span>本节有 {count} 项会覆盖原配置</span>
+            <button className="button small" type="button" onClick={onClear}>
+              清除本节覆盖
+            </button>
+          </div>
+        )}
+        <div className="advanced-config-grid">{children}</div>
+      </div>
     </details>
   );
 }

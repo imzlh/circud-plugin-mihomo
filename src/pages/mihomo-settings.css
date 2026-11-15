@@ -2,23 +2,75 @@
   display: grid;
   gap: 0;
 }
-.mihomo-settings-heading {
-  align-items: flex-start;
-}
-.mihomo-settings-heading > div {
+.mihomo-settings-areas {
   display: grid;
-  flex: 1;
-  gap: 4px;
-  min-width: 240px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.mihomo-settings-heading p {
+.mihomo-settings-areas > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.mihomo-settings-areas > button:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  color: var(--text);
+}
+.mihomo-settings-areas > button[aria-selected="true"] {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.mihomo-settings-areas > button > svg {
+  flex: none;
+}
+.mihomo-settings-areas > button > span {
+  display: grid;
+  gap: 2px;
+}
+.mihomo-settings-areas em {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--orange);
+  background: var(--orange-soft);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.mihomo-settings-areas strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+.mihomo-settings-areas small {
+  font-size: 10px;
+  line-height: 1.5;
+}
+.mihomo-settings-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.mihomo-settings-intro p {
   margin: 0;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.65;
 }
-.mihomo-settings-heading > .button {
-  margin-left: auto;
+.mihomo-settings-intro .button {
+  flex: none;
 }
 .mihomo-settings-preview,
 .mihomo-settings-message {
@@ -33,8 +85,15 @@
   background: var(--subtle);
 }
 .mihomo-settings-message.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   color: var(--red);
   background: var(--red-soft);
+}
+.mihomo-settings-message.error .button {
+  flex: none;
 }
 .mihomo-settings-message.success {
   display: flex;
@@ -51,6 +110,29 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+.mihomo-global-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.mihomo-global-toggle > div {
+  display: grid;
+  gap: 3px;
+}
+.mihomo-global-toggle strong {
+  font-size: 12px;
+}
+.mihomo-global-toggle p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
 }
 .mihomo-source-editor {
   display: grid;
@@ -83,9 +165,21 @@
   font-size: 11px;
   line-height: 1.6;
 }
+.mihomo-settings-footer > div {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
 @media (max-width: 620px) {
-  .mihomo-settings-heading > .button {
-    margin-left: 25px;
+  .mihomo-settings-areas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mihomo-settings-intro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mihomo-settings-intro .button {
+    justify-content: center;
   }
   .mihomo-settings-footer {
     align-items: stretch;
@@ -93,5 +187,9 @@
   }
   .mihomo-settings-footer .button {
     justify-content: center;
+  }
+  .mihomo-settings-footer > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

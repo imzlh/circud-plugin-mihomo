@@ -23,7 +23,17 @@ const initial = {
   tun: { device: "mihomo", stack: "mixed", mtu: 9000, gso: true },
 } as const;
 
-async function fixture(page: Page) {
+async function fixture(
+  page: Page,
+  options: {
+    activeProfile?: boolean;
+    applyState?: "succeeded" | "failed";
+    networkDesired?: boolean;
+  } = {},
+) {
+  const activeProfile = options.activeProfile ?? true;
+  const applyState = options.applyState ?? "succeeded";
+  const networkDesired = options.networkDesired ?? false;
   let revision = 4;
   let scheduleRevision = 2;
   let config: Record<string, unknown> = structuredClone(initial);
@@ -48,10 +58,16 @@ async function fixture(page: Page) {
       return response(route, {
         service: { enabled: true, state: "running", pid: 1000 },
         controller: { reachable: true, version: "v1.19.15" },
-        config: { state: "active", generationId: "g-current" },
+        config: {
+          state: "active",
+          ...(activeProfile
+            ? { activeProfileId: "main", activeRevision: 1 }
+            : {}),
+          generationId: "g-current",
+        },
         network: {
-          state: "inactive",
-          desired: false,
+          state: networkDesired ? "active" : "inactive",
+          desired: networkDesired,
           tcpMode: config.tcpMode,
           udpMode: config.udpMode,
           ipv4: config.ipv4,
@@ -65,6 +81,30 @@ async function fixture(page: Page) {
       revision++;
       return response(route, { revision, config });
     }
+    if (path === "/profiles/main/apply" && request.method() === "POST")
+      return response(route, { operationId: "apply-network" }, 202);
+    if (path === "/operations/apply-network" && request.method() === "GET")
+      return response(route, {
+        id: "apply-network",
+        kind: "profile.apply",
+        state: applyState,
+        startedAt: 1,
+        finishedAt: 2,
+        result: applyState === "succeeded" ? {} : null,
+        error: applyState === "failed" ? "Mihomo refused the TUN config" : null,
+      });
+    if (path === "/network/reconcile" && request.method() === "POST")
+      return response(route, { operationId: "reconcile-network" }, 202);
+    if (path === "/operations/reconcile-network" && request.method() === "GET")
+      return response(route, {
+        id: "reconcile-network",
+        kind: "network.reconcile",
+        state: "succeeded",
+        startedAt: 1,
+        finishedAt: 2,
+        result: {},
+        error: null,
+      });
     if (path === "/service/schedule" && request.method() === "GET")
       return response(route, { revision: scheduleRevision, config: schedule });
     if (path === "/service/schedule" && request.method() === "PUT") {
@@ -103,10 +143,11 @@ test("Manager settings save TUN ownership and advanced interception policy", asy
 }) => {
   const api = await fixture(page);
   await page.goto("./#/mihomo-settings");
+  await page.getByRole("tab", { name: /路由器接管/ }).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   await expect(manager.getByText("revision 4", { exact: true })).toBeVisible();
 
-  await manager.getByRole("switch", { name: "TUN 接管" }).click();
+  await manager.getByLabel("接管模式", { exact: true }).selectOption("tun");
   await manager.getByLabel("TUN 设备", { exact: true }).fill("mihomo0");
   await manager.getByLabel("TUN Stack", { exact: true }).selectOption("system");
   await manager.getByLabel("TUN MTU", { exact: true }).fill("1500");
@@ -136,9 +177,16 @@ test("Manager settings save TUN ownership and advanced interception policy", asy
     .fill("fc00::/18");
   await manager.getByRole("button", { name: "保存网络配置" }).click();
 
-  await expect(manager.getByText("网络配置已保存 · revision 5")).toBeVisible();
-  expect(api.writes).toHaveLength(1);
+  await expect(
+    manager.getByText("网络配置已保存并重新应用当前配置 · revision 5"),
+  ).toBeVisible();
+  expect(api.writes).toHaveLength(2);
   expect(api.writes[0]).toMatchObject({ method: "PUT", path: "/network" });
+  expect(api.writes[1]).toEqual({
+    method: "POST",
+    path: "/profiles/main/apply",
+    body: { expectedRevision: 1 },
+  });
   expect(api.config()).toMatchObject({
     tcpMode: "tun",
     udpMode: "tun",
@@ -159,11 +207,82 @@ test("Manager settings save TUN ownership and advanced interception policy", asy
   });
 });
 
+test("Manager settings keep runtime changes pending without an active profile", async ({
+  page,
+}) => {
+  const api = await fixture(page, { activeProfile: false });
+  await page.goto("./#/mihomo-settings");
+  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  const manager = page.getByRole("region", { name: "路由器服务" });
+  const enable = manager.getByRole("button", { name: "启用" });
+
+  await expect(enable).toBeDisabled();
+  await expect(enable).toHaveAttribute(
+    "title",
+    "请先到“配置”页预览并应用一个 profile",
+  );
+
+  await manager.getByLabel("接管模式", { exact: true }).selectOption("tun");
+  await manager.getByRole("button", { name: "保存网络配置" }).click();
+
+  await expect(
+    manager.getByText(
+      "网络配置已保存为 revision 5；尚无活动 profile，请到“配置”页预览并应用后再启用透明代理。",
+    ),
+  ).toBeVisible();
+  expect(api.writes).toEqual([
+    expect.objectContaining({ method: "PUT", path: "/network" }),
+  ]);
+});
+
+test("Manager settings report a saved revision when runtime apply fails", async ({
+  page,
+}) => {
+  const api = await fixture(page, { applyState: "failed" });
+  await page.goto("./#/mihomo-settings");
+  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  const manager = page.getByRole("region", { name: "路由器服务" });
+
+  await manager.getByLabel("接管模式", { exact: true }).selectOption("tun");
+  await manager.getByRole("button", { name: "保存网络配置" }).click();
+
+  await expect(
+    manager.getByText(
+      "网络配置已保存为 revision 5，但运行态更新失败：Mihomo refused the TUN config",
+    ),
+  ).toBeVisible();
+  expect(api.writes.map(({ path }) => path)).toEqual([
+    "/network",
+    "/profiles/main/apply",
+  ]);
+});
+
+test("Manager settings reconcile active interception for policy-only changes", async ({
+  page,
+}) => {
+  const api = await fixture(page, { networkDesired: true });
+  await page.goto("./#/mihomo-settings");
+  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  const manager = page.getByRole("region", { name: "路由器服务" });
+
+  await manager.getByRole("switch", { name: "路由器代理" }).click();
+  await manager.getByRole("button", { name: "保存网络配置" }).click();
+
+  await expect(
+    manager.getByText("网络配置已保存并重新协调 · revision 5"),
+  ).toBeVisible();
+  expect(api.writes.map(({ path }) => path)).toEqual([
+    "/network",
+    "/network/reconcile",
+  ]);
+});
+
 test("Manager settings persist the device-side restart schedule", async ({
   page,
 }) => {
   const api = await fixture(page);
   await page.goto("./#/mihomo-settings");
+  await page.getByRole("tab", { name: /路由器接管/ }).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   await manager.getByRole("switch", { name: "启用定时重启" }).click();
   await manager.getByLabel("重启时间", { exact: true }).fill("04:15");

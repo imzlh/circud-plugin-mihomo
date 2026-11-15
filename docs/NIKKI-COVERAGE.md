@@ -1,6 +1,6 @@
 # Nikki 功能覆盖矩阵
 
-核对日期：2026-11-15。参考基线为 Nikki 当前仓库的 README 及
+核对日期：2026-11-16。参考基线为 Nikki 当前仓库的 README 及
 `luci-app-nikki` 中 `app.js`、`profile.js`、`mixin.js`、`proxy.js`、
 `editor.js`、`log.js`，并核对 `nikki.conf` 与透明代理实现。本文只比较
 OpenWrt Mihomo 管理主路径，不把 LuCI 表单结构当成功能要求。
@@ -31,19 +31,25 @@ OpenWrt Mihomo 管理主路径，不把 LuCI 表单结构当成功能要求。
 ## 常用及高级 Mihomo 配置
 
 结构化高级配置写入普通 Merge 混入，未展示键保持原样；用户始终可以切换到
-YAML 原文编辑。当前覆盖 Nikki 常用项：
+YAML 原文编辑。左侧“`Mihomo 设置`”是一等入口，直接编辑全局 Merge；启停时
+保留内容，保存前校验 YAML，并使用 revision CAS 防止覆盖其他会话。当前覆盖
+Nikki 常用项：
 
 - 模式、日志级别、进程匹配、出站接口、IPv6、统一延迟、TCP 并发与 Keepalive；
 - HTTP、SOCKS、mixed 入站、监听地址、LAN 监听和认证；
+- 全局 User-Agent、TLS 指纹、GeoX ETag 与 Geosite matcher；
 - DNS 开关、IPv6、Fake-IP/redir-host、缓存算法、Fake-IP 范围/TTL/filter、
-  default/nameserver/proxy/direct/fallback、nameserver policy、Hosts；
+  default/nameserver/proxy/direct/fallback、fallback filter、nameserver policy、Hosts；
 - Sniffer 总开关、DNS mapping、纯 IP、force/skip domain，以及 HTTP/TLS/QUIC
-  端口与 override destination；
+  端口、源/目标地址跳过与 override destination；
 - 节点选择/Fake-IP 缓存、GeoData loader、GeoX URL 与自动更新；
 - Rule Provider 映射，以及独立可排序的 rules/proxies/proxy-groups Seq 混入。
 
 Redirect/TPROXY 端口、DNS listener、Controller/Secret 和 TUN 路由字段由
 Manager runtime overlay 固定或生成，防止 profile 与 companion 网络所有权分裂。
+修改 TUN 或 Fake-IP runtime 字段后，Manager 会重新编译并原子应用当前 profile；
+仅修改 ACL、端口、绕过与 Ping 接管时，则在透明代理已启用的情况下重新协调网络。
+没有活动 profile 时可以先保存设置，但必须先在“配置”页预览并应用，才能启用接管。
 
 ## 运行面板
 

@@ -271,6 +271,7 @@ test("structured advanced mixin writes common Mihomo YAML without losing ownersh
     dialog.getByRole("button", { name: "常用配置" }),
   ).toHaveAttribute("aria-pressed", "true");
 
+  await dialog.getByText("入站与认证", { exact: true }).click();
   await dialog
     .getByRole("switch", { name: "覆盖 HTTP/SOCKS 混合端口" })
     .click();

@@ -140,6 +140,18 @@ function interceptionMode(config: NetworkConfig): InterceptionMode {
   return config.tcpMode === "tproxy" ? "tproxy" : "redirect";
 }
 
+/** Fields that are compiled into the active Mihomo profile, not only nftables. */
+function runtimeNetworkSignature(config: NetworkConfig): string {
+  return JSON.stringify({
+    tunMode: config.tcpMode === "tun" && config.udpMode === "tun",
+    tun: config.tun,
+    fakeIp: {
+      ipv4Range: config.fakeIp.ipv4Range,
+      ipv6Range: config.fakeIp.ipv6Range,
+    },
+  });
+}
+
 function cidrFamily(value: string): 4 | 6 | null {
   const text = value.trim();
   if (text.includes(":")) {
@@ -431,6 +443,9 @@ export function ManagerSettings({
     setError("");
     setNotice("");
     try {
+      const runtimeChanged =
+        runtimeNetworkSignature(draft) !==
+        runtimeNetworkSignature(revisioned.config);
       const saved = await managerClient.updateNetwork(
         draft,
         revisioned.revision,
@@ -440,23 +455,45 @@ export function ManagerSettings({
       setDraft(saved.config);
       networkSnapshot.current = saved;
       receivedNetworkConfig.current = true;
-      if (status?.network.desired) {
-        setPending("network:reconcile");
+
+      let nextNotice = `网络配置已保存 · revision ${saved.revision}`;
+      let nextError = "";
+      const activeProfileId = status?.config.activeProfileId;
+      const activeRevision = status?.config.activeRevision;
+      if (runtimeChanged && activeProfileId && activeRevision !== undefined) {
+        setPending("network:save:apply");
+        try {
+          const accepted = await managerClient.applyProfile(
+            activeProfileId,
+            activeRevision,
+          );
+          await managerClient.waitForOperation(accepted);
+          if (!mounted.current) return;
+          nextNotice = `网络配置已保存并重新应用当前配置 · revision ${saved.revision}`;
+        } catch (applyError) {
+          if (!mounted.current) return;
+          nextNotice = "";
+          nextError = `网络配置已保存为 revision ${saved.revision}，但运行态更新失败：${errorMessage(applyError)}`;
+        }
+      } else if (runtimeChanged) {
+        nextNotice = `网络配置已保存为 revision ${saved.revision}；尚无活动 profile，请到“配置”页预览并应用后再启用透明代理。`;
+      } else if (status?.network.desired) {
+        setPending("network:save:reconcile");
         try {
           const accepted = await managerClient.networkAction("reconcile");
           await managerClient.waitForOperation(accepted);
           if (!mounted.current) return;
-          setNotice(`网络配置已保存并重新协调 · revision ${saved.revision}`);
+          nextNotice = `网络配置已保存并重新协调 · revision ${saved.revision}`;
         } catch (reconcileError) {
           if (!mounted.current) return;
-          setError(
-            `网络配置已保存为 revision ${saved.revision}，但重新协调失败：${errorMessage(reconcileError)}`,
-          );
+          nextNotice = "";
+          nextError = `网络配置已保存为 revision ${saved.revision}，但重新协调失败：${errorMessage(reconcileError)}`;
         }
-      } else {
-        setNotice(`网络配置已保存 · revision ${saved.revision}`);
       }
       await refresh(true);
+      if (!mounted.current) return;
+      setNotice(nextNotice);
+      setError(nextError);
     } catch (requestError) {
       if (mounted.current) setError(errorMessage(requestError));
     } finally {
@@ -500,6 +537,10 @@ export function ManagerSettings({
     !!schedule &&
     JSON.stringify(scheduleDraft) !== JSON.stringify(schedule.config);
   const busy = pending !== null;
+  const activeProfileReady =
+    !!status?.config.activeProfileId &&
+    status.config.activeRevision !== undefined;
+  const networkSavePending = pending?.startsWith("network:save") === true;
 
   useEffect(() => {
     onDirtyChange?.(changed || scheduleChanged);
@@ -1165,9 +1206,18 @@ export function ManagerSettings({
                   <button
                     className="button small"
                     disabled={
-                      busy || changed || status?.network.desired === true
+                      busy ||
+                      changed ||
+                      !activeProfileReady ||
+                      status?.network.desired === true
                     }
-                    title={changed ? "请先保存网络配置" : undefined}
+                    title={
+                      changed
+                        ? "请先保存网络配置"
+                        : !activeProfileReady
+                          ? "请先到“配置”页预览并应用一个 profile"
+                          : undefined
+                    }
                     onClick={() => void runNetwork("enable")}
                   >
                     {pending === "network:enable" ? (
@@ -1192,7 +1242,11 @@ export function ManagerSettings({
                   <button
                     className="button small"
                     disabled={busy || changed}
-                    title={changed ? "保存后会自动重新协调" : undefined}
+                    title={
+                      changed
+                        ? "请先保存；TUN/Fake-IP 变更会重新应用当前配置，其余策略会重新协调"
+                        : undefined
+                    }
                     onClick={() => void runNetwork("reconcile")}
                   >
                     {pending === "network:reconcile" ? (
@@ -1221,12 +1275,14 @@ export function ManagerSettings({
                     disabled={busy || !changed}
                     onClick={() => void saveNetwork()}
                   >
-                    {pending === "network:save" ? (
-                      <Spinner />
-                    ) : (
-                      <Save size={15} />
-                    )}
-                    {pending === "network:save" ? "保存中…" : "保存网络配置"}
+                    {networkSavePending ? <Spinner /> : <Save size={15} />}
+                    {pending === "network:save:apply"
+                      ? "正在重新应用…"
+                      : pending === "network:save:reconcile"
+                        ? "正在重新协调…"
+                        : pending === "network:save"
+                          ? "保存中…"
+                          : "保存网络配置"}
                   </button>
                 </div>
               </div>
