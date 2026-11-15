@@ -8,6 +8,7 @@ import {
   Check,
   CloudDownload,
   List,
+  LoaderCircle,
   RefreshCw,
   ScrollText,
 } from 'lucide-react';
@@ -197,8 +198,16 @@ function ProviderNodes({ name, onClose }: { name: string; onClose: () => void })
 }
 
 export default function Providers() {
-  const { connected, client, providers, ruleProviders, runAction, refresh } =
-    useMihomo();
+  const {
+    connected,
+    client,
+    providers,
+    providersPending,
+    ruleProviders,
+    ruleProvidersPending,
+    runAction,
+    refresh,
+  } = useMihomo();
   const [tab, setTab] = useState<'proxies' | 'rules'>('proxies');
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState('name');
@@ -343,7 +352,12 @@ export default function Providers() {
                   </select>
                 </label>
               </div>
-              {!entries.length ? (
+              {providersPending ? (
+                <div className="page-loading" role="status">
+                  <LoaderCircle size={26} className="spin" />
+                  正在加载代理集…
+                </div>
+              ) : !entries.length ? (
                 <div className="panel">
                   <EmptyState
                     icon={Box}
@@ -481,7 +495,12 @@ export default function Providers() {
             </>
           ) : (
             <section className="panel">
-              {!sortedRows.length ? (
+              {ruleProvidersPending ? (
+                <div className="page-loading" role="status">
+                  <LoaderCircle size={26} className="spin" />
+                  正在加载规则集…
+                </div>
+              ) : !sortedRows.length ? (
                 <EmptyState
                   icon={ScrollText}
                   title={query ? '没有匹配的规则集' : '配置中暂无规则集'}

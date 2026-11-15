@@ -24,11 +24,14 @@ import {
   type RestartSchedule,
   type RevisionedRestartSchedule,
 } from "../lib/manager";
-import { Badge, Spinner, Toggle } from "./ui";
+import { Badge, Modal, Spinner, Toggle } from "./ui";
+import { usePoller } from "../hooks/use-poll";
 import "./manager-settings.css";
 
 type ServiceAction = "start" | "reload" | "restart" | "stop";
 type NetworkAction = "enable" | "disable" | "reconcile";
+type ConfirmableAction =
+  "service-stop" | "network-disable" | "generation-rollback";
 
 const serviceActions: Array<{
   action: ServiceAction;
@@ -50,6 +53,27 @@ const weekdays = [
   { value: 6, label: "六" },
   { value: 0, label: "日" },
 ] as const;
+
+const confirmations: Record<
+  ConfirmableAction,
+  { title: string; description: string }
+> = {
+  "service-stop": {
+    title: "停止 Mihomo 服务？",
+    description:
+      "停止后内核进程退出，所有经内核代理的连接立即中断；可随时重新启动服务。",
+  },
+  "network-disable": {
+    title: "停用透明代理？",
+    description:
+      "将移除 fw4 接管规则，路由器与局域网流量恢复直连；内核保持运行，但不再接管流量。",
+  },
+  "generation-rollback": {
+    title: "回滚上一代配置？",
+    description:
+      "内核将切回上一代运行配置，连接可能短暂中断；回滚不会改动配置库中的原文。",
+  },
+};
 
 function errorMessage(error: unknown): string {
   return error instanceof Error
@@ -109,7 +133,117 @@ function tokenLines(value: string): string[] {
   ];
 }
 
-export function ManagerSettings() {
+type InterceptionMode = "redirect" | "tproxy" | "tun";
+
+function interceptionMode(config: NetworkConfig): InterceptionMode {
+  if (config.tcpMode === "tun" && config.udpMode === "tun") return "tun";
+  return config.tcpMode === "tproxy" ? "tproxy" : "redirect";
+}
+
+function cidrFamily(value: string): 4 | 6 | null {
+  const text = value.trim();
+  if (text.includes(":")) {
+    const match = text.match(/^([0-9A-Fa-f:]+)(?:\/(\d{1,3}))?$/);
+    const address = match?.[1];
+    return match &&
+      !!address &&
+      address.includes(":") &&
+      Number(match[2] ?? 128) <= 128 &&
+      !address.includes(":::") &&
+      address.split("::").length <= 2
+      ? 6
+      : null;
+  }
+  const match = text.match(
+    /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:\/(\d{1,2}))?$/,
+  );
+  return match &&
+    match.slice(1, 5).every((part) => Number(part) <= 255) &&
+    Number(match[5] ?? 32) <= 32
+    ? 4
+    : null;
+}
+
+function networkDraftError(config: NetworkConfig): string {
+  if ((config.tcpMode === "tun") !== (config.udpMode === "tun"))
+    return "TUN 必须同时接管 TCP 与 UDP。";
+  if (
+    config.tcpMode === "tun" &&
+    (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/.test(config.tun.device) ||
+      !Number.isInteger(config.tun.mtu) ||
+      config.tun.mtu < 576 ||
+      config.tun.mtu > 65_535)
+  )
+    return "TUN 设备名或 MTU 无效；设备名最长 15 字符，MTU 范围 576–65535。";
+  if (
+    config.lanInterfaces.some(
+      (value) => !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/.test(value),
+    )
+  )
+    return "LAN 入站接口包含无效设备名；每项最长 15 字符。";
+  for (const [label, values] of [
+    ["路由器来源 ACL", config.routerAcl],
+    ["局域网来源 ACL", config.lanAcl],
+    ["保留地址", config.reservedCidrs],
+  ] as const) {
+    for (const [index, value] of values.entries()) {
+      if (cidrFamily(value) !== null) continue;
+      return `${label}第 ${index + 1} 行的“${value}”不是有效 IPv4/IPv6 CIDR。`;
+    }
+  }
+  for (const [label, values] of [
+    ["TCP", config.tcpPorts],
+    ["UDP", config.udpPorts],
+  ] as const) {
+    if (values.length === 0) return `${label} 目标端口不能留空。`;
+    for (const value of values) {
+      const match = value.match(/^(\d{1,5})(?:-(\d{1,5}))?$/);
+      const first = Number(match?.[1]);
+      const last = Number(match?.[2] ?? match?.[1]);
+      if (!match || first > 65_535 || last > 65_535 || first > last)
+        return `${label} 目标端口“${value}”不是有效端口或范围。`;
+    }
+  }
+  if (
+    config.bypassDscp.some(
+      (value) => !Number.isInteger(value) || value < 0 || value > 63,
+    )
+  )
+    return "绕过 DSCP 只能填写 0–63 的整数。";
+  for (const value of config.bypassMarks) {
+    const match = value.match(/^(0x[0-9a-f]+|\d+)(?:\/(0x[0-9a-f]+|\d+))?$/i);
+    const mark = Number(match?.[1]);
+    const mask = Number(match?.[2] ?? "0xffffffff");
+    if (
+      !match ||
+      !Number.isSafeInteger(mark) ||
+      !Number.isSafeInteger(mask) ||
+      mark < 0 ||
+      mask < 0 ||
+      mark > 0xffff_ffff ||
+      mask > 0xffff_ffff ||
+      (mark & mask) >>> 0 !== mark
+    )
+      return `绕过 FWMark“${value}”不是有效的 32 位 mark/mask。`;
+  }
+  if (
+    config.fakeIp.pingHijack &&
+    !config.fakeIp.ipv4Range &&
+    !config.fakeIp.ipv6Range
+  )
+    return "启用 Fake-IP Ping 接管前，请至少填写一个 Fake-IP 地址范围。";
+  if (config.fakeIp.ipv4Range && cidrFamily(config.fakeIp.ipv4Range) !== 4)
+    return "Fake-IP IPv4 范围必须是有效的 IPv4 CIDR。";
+  if (config.fakeIp.ipv6Range && cidrFamily(config.fakeIp.ipv6Range) !== 6)
+    return "Fake-IP IPv6 范围必须是有效的 IPv6 CIDR。";
+  return "";
+}
+
+export function ManagerSettings({
+  onDirtyChange,
+}: {
+  onDirtyChange?: (dirty: boolean) => void;
+} = {}) {
   const [status, setStatus] = useState<ManagedStatus | null>(null);
   const [revisioned, setRevisioned] = useState<RevisionedNetworkConfig | null>(
     null,
@@ -128,9 +262,19 @@ export function ManagerSettings() {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmableAction | null>(
+    null,
+  );
   const mounted = useRef(false);
   const receivedNetworkConfig = useRef(false);
   const receivedRestartSchedule = useRef(false);
+  const lifecycle = useRef<AbortController | null>(null);
+  const networkSnapshot = useRef<RevisionedNetworkConfig | null>(null);
+  const scheduleSnapshot = useRef<RevisionedRestartSchedule | null>(null);
+  const networkDraft = useRef<NetworkConfig | null>(null);
+  const restartDraft = useRef<RestartSchedule | null>(null);
+  networkDraft.current = draft;
+  restartDraft.current = scheduleDraft;
 
   const refresh = useCallback(async (quiet = false, signal?: AbortSignal) => {
     if (!quiet) setLoading(true);
@@ -144,12 +288,17 @@ export function ManagerSettings() {
     if (!signal?.aborted) {
       if (statusResult.status === "fulfilled") setStatus(statusResult.value);
       if (configResult.status === "fulfilled") {
-        setRevisioned(configResult.value);
-        setDraft((current: NetworkConfig | null) =>
-          receivedNetworkConfig.current
-            ? (current ?? configResult.value.config)
-            : configResult.value.config,
-        );
+        const previous = networkSnapshot.current;
+        const dirty =
+          previous !== null &&
+          networkDraft.current !== null &&
+          JSON.stringify(networkDraft.current) !==
+            JSON.stringify(previous.config);
+        if (!dirty) {
+          setDraft(configResult.value.config);
+          setRevisioned(configResult.value);
+          networkSnapshot.current = configResult.value;
+        }
         receivedNetworkConfig.current = true;
       } else if (!receivedNetworkConfig.current) {
         setDraft((current) => current ?? defaultNetworkConfig());
@@ -157,12 +306,17 @@ export function ManagerSettings() {
       if (capabilitiesResult.status === "fulfilled")
         setCapabilities(capabilitiesResult.value);
       if (scheduleResult.status === "fulfilled") {
-        setSchedule(scheduleResult.value);
-        setScheduleDraft((current: RestartSchedule | null) =>
-          receivedRestartSchedule.current
-            ? (current ?? scheduleResult.value.config)
-            : scheduleResult.value.config,
-        );
+        const previous = scheduleSnapshot.current;
+        const dirty =
+          previous !== null &&
+          restartDraft.current !== null &&
+          JSON.stringify(restartDraft.current) !==
+            JSON.stringify(previous.config);
+        if (!dirty) {
+          setScheduleDraft(scheduleResult.value.config);
+          setSchedule(scheduleResult.value);
+          scheduleSnapshot.current = scheduleResult.value;
+        }
         receivedRestartSchedule.current = true;
       } else if (!receivedRestartSchedule.current) {
         setScheduleDraft((current) => current ?? defaultRestartSchedule());
@@ -183,23 +337,24 @@ export function ManagerSettings() {
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
+    lifecycle.current = controller;
     void refresh(false, controller.signal);
-    const timer = window.setInterval(() => {
-      void managerClient
-        .status(controller.signal)
-        .then((next: ManagedStatus) => {
-          if (!controller.signal.aborted) setStatus(next);
-        })
-        .catch(() => {
-          /* A manual refresh reports transport errors without noisy polling alerts. */
-        });
-    }, 5_000);
     return () => {
       mounted.current = false;
+      lifecycle.current = null;
       controller.abort();
-      window.clearInterval(timer);
     };
   }, [refresh]);
+  usePoller(() => {
+    void managerClient
+      .status(lifecycle.current?.signal)
+      .then((next: ManagedStatus) => {
+        if (lifecycle.current) setStatus(next);
+      })
+      .catch(() => {
+        /* A manual refresh reports transport errors without noisy polling alerts. */
+      });
+  }, 5_000);
 
   async function runService(action: ServiceAction) {
     if (pending) return;
@@ -255,22 +410,21 @@ export function ManagerSettings() {
     }
   }
 
+  function executeConfirm() {
+    if (!confirmAction || busy) return;
+    const action = confirmAction;
+    if (action === "service-stop")
+      void runService("stop").finally(() => setConfirmAction(null));
+    else if (action === "network-disable")
+      void runNetwork("disable").finally(() => setConfirmAction(null));
+    else void rollbackGeneration().finally(() => setConfirmAction(null));
+  }
+
   async function saveNetwork() {
     if (!draft || !revisioned || pending) return;
-    if ((draft.tcpMode === "tun") !== (draft.udpMode === "tun")) {
-      setError("TUN 必须同时接管 TCP 与 UDP；请使用“TUN 接管”开关切换。");
-      return;
-    }
-    if (
-      draft.tcpMode === "tun" &&
-      (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/.test(draft.tun.device) ||
-        !Number.isInteger(draft.tun.mtu) ||
-        draft.tun.mtu < 576 ||
-        draft.tun.mtu > 65_535)
-    ) {
-      setError(
-        "TUN 设备名或 MTU 无效；设备名最长 15 字符，MTU 范围 576–65535。",
-      );
+    const validationError = networkDraftError(draft);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setPending("network:save");
@@ -284,8 +438,24 @@ export function ManagerSettings() {
       if (!mounted.current) return;
       setRevisioned(saved);
       setDraft(saved.config);
+      networkSnapshot.current = saved;
       receivedNetworkConfig.current = true;
-      setNotice(`网络配置已保存 · revision ${saved.revision}`);
+      if (status?.network.desired) {
+        setPending("network:reconcile");
+        try {
+          const accepted = await managerClient.networkAction("reconcile");
+          await managerClient.waitForOperation(accepted);
+          if (!mounted.current) return;
+          setNotice(`网络配置已保存并重新协调 · revision ${saved.revision}`);
+        } catch (reconcileError) {
+          if (!mounted.current) return;
+          setError(
+            `网络配置已保存为 revision ${saved.revision}，但重新协调失败：${errorMessage(reconcileError)}`,
+          );
+        }
+      } else {
+        setNotice(`网络配置已保存 · revision ${saved.revision}`);
+      }
       await refresh(true);
     } catch (requestError) {
       if (mounted.current) setError(errorMessage(requestError));
@@ -311,6 +481,7 @@ export function ManagerSettings() {
       if (!mounted.current) return;
       setSchedule(saved);
       setScheduleDraft(saved.config);
+      scheduleSnapshot.current = saved;
       receivedRestartSchedule.current = true;
       setNotice(`定时重启已保存 · revision ${saved.revision}`);
     } catch (requestError) {
@@ -329,6 +500,11 @@ export function ManagerSettings() {
     !!schedule &&
     JSON.stringify(scheduleDraft) !== JSON.stringify(schedule.config);
   const busy = pending !== null;
+
+  useEffect(() => {
+    onDirtyChange?.(changed || scheduleChanged);
+    return () => onDirtyChange?.(false);
+  }, [changed, onDirtyChange, scheduleChanged]);
 
   function setBoolean(
     key: "ipv4" | "ipv6" | "bypassReserved" | "bypassCn",
@@ -362,13 +538,18 @@ export function ManagerSettings() {
     );
   }
 
-  function setTunMode(enabled: boolean) {
+  function setInterceptionMode(mode: InterceptionMode) {
     setDraft((current: NetworkConfig | null) =>
       current
         ? {
             ...current,
-            tcpMode: enabled ? "tun" : "redirect",
-            udpMode: enabled ? "tun" : "tproxy",
+            tcpMode:
+              mode === "tun"
+                ? "tun"
+                : mode === "tproxy"
+                  ? "tproxy"
+                  : "redirect",
+            udpMode: mode === "tun" ? "tun" : "tproxy",
           }
         : current,
     );
@@ -419,7 +600,10 @@ export function ManagerSettings() {
           </div>
           <button
             className="button small manager-refresh"
-            disabled={busy || loading}
+            disabled={busy || loading || changed || scheduleChanged}
+            title={
+              changed || scheduleChanged ? "请先保存或放弃当前修改" : undefined
+            }
             onClick={() => void refresh()}
           >
             {loading ? <Spinner /> : <RefreshCw size={14} />}
@@ -461,7 +645,11 @@ export function ManagerSettings() {
                 key={action}
                 className={`button small${action === "stop" ? " manager-danger" : ""}`}
                 disabled={busy || loading || !status}
-                onClick={() => void runService(action)}
+                onClick={() =>
+                  action === "stop"
+                    ? setConfirmAction("service-stop")
+                    : void runService(action)
+                }
               >
                 {pending === `service:${action}` ? (
                   <Spinner />
@@ -544,18 +732,32 @@ export function ManagerSettings() {
                 <span className="manager-revision">
                   {schedule ? `revision ${schedule.revision}` : "只读预览"}
                 </span>
-                <button
-                  className="button small"
-                  disabled={busy || !schedule || !scheduleChanged}
-                  onClick={() => void saveRestartSchedule()}
-                >
-                  {pending === "schedule:save" ? (
-                    <Spinner />
-                  ) : (
-                    <Save size={14} />
-                  )}
-                  保存定时重启
-                </button>
+                <div className="manager-save-actions">
+                  <button
+                    className="button small"
+                    disabled={busy || !schedule || !scheduleChanged}
+                    onClick={() => {
+                      if (schedule) setScheduleDraft(schedule.config);
+                      setError("");
+                      setNotice("");
+                    }}
+                  >
+                    <Undo2 size={14} />
+                    放弃修改
+                  </button>
+                  <button
+                    className="button small"
+                    disabled={busy || !schedule || !scheduleChanged}
+                    onClick={() => void saveRestartSchedule()}
+                  >
+                    {pending === "schedule:save" ? (
+                      <Spinner />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    保存定时重启
+                  </button>
+                </div>
               </div>
             </>
           ) : (
@@ -587,7 +789,7 @@ export function ManagerSettings() {
                 !status?.config.previousGenerationId ||
                 capabilities?.generationRollback !== true
               }
-              onClick={() => void rollbackGeneration()}
+              onClick={() => setConfirmAction("generation-rollback")}
             >
               {pending === "generation:rollback" ? (
                 <Spinner />
@@ -617,54 +819,28 @@ export function ManagerSettings() {
               className="manager-preview-fields"
               disabled={busy || !revisioned}
             >
-              <div className="manager-mode-grid">
+              <div className="manager-mode-grid manager-interception-mode">
                 <label className="form-field">
-                  <span>TCP 模式</span>
+                  <span>接管模式</span>
                   <select
                     className="field"
-                    aria-label="TCP 模式"
-                    value={draft.tcpMode}
+                    aria-label="接管模式"
+                    value={interceptionMode(draft)}
                     disabled={busy}
                     onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        tcpMode: event.target.value as NetworkConfig["tcpMode"],
-                      })
+                      setInterceptionMode(
+                        event.target.value as InterceptionMode,
+                      )
                     }
                   >
-                    <option value="redirect">Redirect</option>
-                    <option value="tproxy">TPROXY</option>
-                    <option value="tun">TUN</option>
+                    <option value="redirect">Redirect TCP + TPROXY UDP</option>
+                    <option value="tproxy">TPROXY TCP + UDP</option>
+                    <option value="tun">TUN TCP + UDP</option>
                   </select>
+                  <small>
+                    只提供 companion 支持的合法组合，不会产生半 TUN 状态。
+                  </small>
                 </label>
-                <label className="form-field">
-                  <span>UDP 模式</span>
-                  <select
-                    className="field"
-                    aria-label="UDP 模式"
-                    value={draft.udpMode}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        udpMode: event.target.value as NetworkConfig["udpMode"],
-                      })
-                    }
-                  >
-                    <option value="tproxy">TPROXY</option>
-                    <option value="tun">TUN</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="manager-toggle-grid">
-                <ManagerToggle
-                  label="TUN 接管"
-                  description="TCP/UDP 都经 Mihomo TUN 设备路由"
-                  checked={draft.tcpMode === "tun" && draft.udpMode === "tun"}
-                  disabled={busy}
-                  onChange={setTunMode}
-                />
               </div>
 
               {draft.tcpMode === "tun" && draft.udpMode === "tun" && (
@@ -988,7 +1164,10 @@ export function ManagerSettings() {
                 >
                   <button
                     className="button small"
-                    disabled={busy || status?.network.desired === true}
+                    disabled={
+                      busy || changed || status?.network.desired === true
+                    }
+                    title={changed ? "请先保存网络配置" : undefined}
                     onClick={() => void runNetwork("enable")}
                   >
                     {pending === "network:enable" ? (
@@ -1001,7 +1180,7 @@ export function ManagerSettings() {
                   <button
                     className="button small manager-danger"
                     disabled={busy || status?.network.desired === false}
-                    onClick={() => void runNetwork("disable")}
+                    onClick={() => setConfirmAction("network-disable")}
                   >
                     {pending === "network:disable" ? (
                       <Spinner />
@@ -1012,7 +1191,8 @@ export function ManagerSettings() {
                   </button>
                   <button
                     className="button small"
-                    disabled={busy}
+                    disabled={busy || changed}
+                    title={changed ? "保存后会自动重新协调" : undefined}
                     onClick={() => void runNetwork("reconcile")}
                   >
                     {pending === "network:reconcile" ? (
@@ -1023,18 +1203,32 @@ export function ManagerSettings() {
                     重新协调
                   </button>
                 </div>
-                <button
-                  className="button primary manager-save"
-                  disabled={busy || !changed}
-                  onClick={() => void saveNetwork()}
-                >
-                  {pending === "network:save" ? (
-                    <Spinner />
-                  ) : (
-                    <Save size={15} />
-                  )}
-                  {pending === "network:save" ? "保存中…" : "保存网络配置"}
-                </button>
+                <div className="manager-save-actions">
+                  <button
+                    className="button small"
+                    disabled={busy || !changed}
+                    onClick={() => {
+                      if (revisioned) setDraft(revisioned.config);
+                      setError("");
+                      setNotice("");
+                    }}
+                  >
+                    <Undo2 size={14} />
+                    放弃修改
+                  </button>
+                  <button
+                    className="button primary manager-save"
+                    disabled={busy || !changed}
+                    onClick={() => void saveNetwork()}
+                  >
+                    {pending === "network:save" ? (
+                      <Spinner />
+                    ) : (
+                      <Save size={15} />
+                    )}
+                    {pending === "network:save" ? "保存中…" : "保存网络配置"}
+                  </button>
+                </div>
               </div>
             </fieldset>
           ) : (
@@ -1079,6 +1273,32 @@ export function ManagerSettings() {
             </div>
           )}
         </div>
+
+        {confirmAction && (
+          <Modal
+            title={confirmations[confirmAction].title}
+            description={confirmations[confirmAction].description}
+            onClose={() => setConfirmAction(null)}
+          >
+            <div className="form-actions">
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() => setConfirmAction(null)}
+              >
+                取消
+              </button>
+              <button
+                className="button primary"
+                disabled={busy}
+                onClick={executeConfirm}
+              >
+                {busy ? <Spinner /> : null}
+                确认执行
+              </button>
+            </div>
+          </Modal>
+        )}
       </div>
     </section>
   );

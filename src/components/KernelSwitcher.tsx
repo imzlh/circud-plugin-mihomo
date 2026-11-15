@@ -127,7 +127,7 @@ export function KernelSwitcher() {
             aria-label="关闭弹窗"
             onClick={() => closePanel(true)}
           >
-            <X size={17} />
+            <X size={18} />
           </button>
         </div>
         <div className="kernel-switcher-managed">

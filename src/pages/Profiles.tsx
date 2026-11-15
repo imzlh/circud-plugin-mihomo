@@ -138,6 +138,29 @@ function downloadContent(name: string, content: string) {
   );
 }
 
+const PROFILE_RENDER_MAX_BYTES = 256 * 1024;
+const PROFILE_RENDER_MAX_LINES = 1000;
+
+/** Very large profiles are capped to their first lines before rendering. */
+function truncateProfileRender(content: string): {
+  text: string;
+  totalLines: number;
+  truncated: boolean;
+} | null {
+  if (
+    new TextEncoder().encode(content).byteLength <= PROFILE_RENDER_MAX_BYTES
+  )
+    return null;
+  const lines = content.split("\n");
+  if (lines.length <= PROFILE_RENDER_MAX_LINES)
+    return { text: content, totalLines: lines.length, truncated: false };
+  return {
+    text: `${lines.slice(0, PROFILE_RENDER_MAX_LINES).join("\n")}\n`,
+    totalLines: lines.length,
+    truncated: true,
+  };
+}
+
 function downloadFile(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");
@@ -173,6 +196,9 @@ function SessionProfiles() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [sourceError, setSourceError] = useState("");
   const [fetching, setFetching] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const globalEnhancementLock = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<ProfileEntry | null>(null);
   const [batchMode, setBatchMode] = useState(false);
   const [batchSelection, setBatchSelection] = useState<Set<string>>(new Set());
@@ -336,6 +362,7 @@ function SessionProfiles() {
   }
 
   function closeEditor() {
+    if (saving) return;
     if (draftChanged) setDiscardConfirm(true);
     else setDraft(null);
   }
@@ -376,7 +403,7 @@ function SessionProfiles() {
   }
 
   async function saveDraft() {
-    if (!draft) return;
+    if (!draft || saving) return;
     if (!draft.name.trim()) {
       setEditorError("请为配置填写名称。");
       return;
@@ -403,9 +430,9 @@ function SessionProfiles() {
       ...(draft.enhancement ? { enhancement: draft.enhancement } : {}),
       ...(draft.mixins ? { mixins: draft.mixins } : {}),
     });
-    let saved: ProfileEntry;
+    setSaving(true);
     try {
-      saved = draft.id
+      const saved = draft.id
         ? await repository.update(
             draft.id,
             input,
@@ -413,14 +440,15 @@ function SessionProfiles() {
           )
         : await repository.create(input);
       await refreshLibrary();
+      setSelectedId(saved.id);
+      setQuery("");
+      setDraft(null);
+      notify("配置已保存到路由器");
     } catch (error) {
       setEditorError(errorText(error));
-      return;
+    } finally {
+      setSaving(false);
     }
-    setSelectedId(saved.id);
-    setQuery("");
-    setDraft(null);
-    notify("配置已保存到路由器");
   }
 
   async function importFile(file: File | undefined) {
@@ -726,6 +754,8 @@ function SessionProfiles() {
   ): Promise<string | null> {
     if (enhancementEditor?.kind !== "global")
       return "编辑会话已结束，请重新打开。";
+    if (globalEnhancementLock.current) return "正在保存全局增强，请稍候。";
+    globalEnhancementLock.current = true;
     try {
       const updated = await repository.updateGlobalEnhancement(value, {
         revision: globalState.revision,
@@ -741,6 +771,8 @@ function SessionProfiles() {
       return null;
     } catch (error) {
       return errorText(error);
+    } finally {
+      globalEnhancementLock.current = false;
     }
   }
 
@@ -924,6 +956,10 @@ function SessionProfiles() {
         item.revision,
       );
   const lastApplied = selected && isRecentlyApplied(selected);
+  const selectedRender = useMemo(
+    () => (selected ? truncateProfileRender(selected.content) : null),
+    [selected],
+  );
 
   return (
     <div className="page-stack profiles-page">
@@ -1383,8 +1419,15 @@ function SessionProfiles() {
                 </button>
               </div>
               <pre className="profile-code" tabIndex={0} aria-label="配置原文">
-                {selected.content}
+                {selectedRender?.text ?? selected.content}
               </pre>
+              {selectedRender?.truncated && (
+                <p className="profile-footnote">
+                  原文过大，已截断显示前 {PROFILE_RENDER_MAX_LINES} 行 / 共{" "}
+                  {selectedRender.totalLines}
+                  行；完整原文可通过“下载原文”获取。
+                </p>
+              )}
               <p className="profile-footnote">
                 选中配置后才可应用；“最近应用”记录本次连接会话中的操作。
               </p>
@@ -1524,7 +1567,9 @@ function SessionProfiles() {
         <Modal
           title="删除选中配置"
           description={`删除以下 ${batchDelete.length} 份配置，内核运行配置不受影响。`}
-          onClose={() => setBatchDelete(null)}
+          onClose={() => {
+            if (!deleting) setBatchDelete(null);
+          }}
         >
           <ul className="profile-delete-list">
             {batchDelete.map((item) => (
@@ -1537,31 +1582,42 @@ function SessionProfiles() {
             </div>
           )}
           <div className="profile-modal-actions">
-            <button className="button" onClick={() => setBatchDelete(null)}>
+            <button
+              className="button"
+              disabled={deleting}
+              onClick={() => setBatchDelete(null)}
+            >
               取消
             </button>
             <button
               className="button danger"
+              disabled={deleting}
               onClick={() =>
                 void (async () => {
-                  const ids = new Set(batchDelete.map((item) => item.id));
-                  const error = await persist((profiles) =>
-                    profiles.filter((item) => !ids.has(item.id)),
-                  );
-                  if (error) {
-                    setOperationError(error);
-                    return;
+                  setDeleting(true);
+                  try {
+                    const ids = new Set(batchDelete.map((item) => item.id));
+                    const error = await persist((profiles) =>
+                      profiles.filter((item) => !ids.has(item.id)),
+                    );
+                    if (error) {
+                      setOperationError(error);
+                      return;
+                    }
+                    setBatchSelection(
+                      (current) =>
+                        new Set([...current].filter((id) => !ids.has(id))),
+                    );
+                    if (selectedId && ids.has(selectedId)) setSelectedId(null);
+                    setBatchDelete(null);
+                    notify("已从路由器删除选中的配置");
+                  } finally {
+                    setDeleting(false);
                   }
-                  setBatchSelection(
-                    (current) =>
-                      new Set([...current].filter((id) => !ids.has(id))),
-                  );
-                  if (selectedId && ids.has(selectedId)) setSelectedId(null);
-                  setBatchDelete(null);
-                  notify("已从路由器删除选中的配置");
                 })()
               }
             >
+              {deleting ? <Spinner /> : null}
               确认删除 {batchDelete.length} 份
             </button>
           </div>
@@ -1684,12 +1740,17 @@ function SessionProfiles() {
                 下载草稿
               </button>
               <span />
-              <button type="button" className="button" onClick={closeEditor}>
+              <button
+                type="button"
+                className="button"
+                disabled={saving}
+                onClick={closeEditor}
+              >
                 取消
               </button>
-              <button type="submit" className="button primary">
-                <Save size={15} />
-                保存配置
+              <button type="submit" className="button primary" disabled={saving}>
+                {saving ? <Spinner /> : <Save size={15} />}
+                {saving ? "保存中…" : "保存配置"}
               </button>
             </div>
           </form>
@@ -1757,7 +1818,9 @@ function SessionProfiles() {
         <Modal
           title="删除配置"
           description={`删除“${deleteTarget.name}”？这不会更改内核正在运行的配置。`}
-          onClose={() => setDeleteTarget(null)}
+          onClose={() => {
+            if (!deleting) setDeleteTarget(null);
+          }}
         >
           {operationError && (
             <div className="profile-error" role="alert">
@@ -1765,26 +1828,37 @@ function SessionProfiles() {
             </div>
           )}
           <div className="profile-modal-actions">
-            <button className="button" onClick={() => setDeleteTarget(null)}>
+            <button
+              className="button"
+              disabled={deleting}
+              onClick={() => setDeleteTarget(null)}
+            >
               取消
             </button>
             <button
               className="button danger"
+              disabled={deleting}
               onClick={() =>
                 void (async () => {
-                  const error = await persist((profiles) =>
-                    profiles.filter((item) => item.id !== deleteTarget.id),
-                  );
-                  if (error) {
-                    setOperationError(error);
-                    return;
+                  setDeleting(true);
+                  try {
+                    const error = await persist((profiles) =>
+                      profiles.filter((item) => item.id !== deleteTarget.id),
+                    );
+                    if (error) {
+                      setOperationError(error);
+                      return;
+                    }
+                    if (selectedId === deleteTarget.id) setSelectedId(null);
+                    setDeleteTarget(null);
+                    notify("已从路由器删除配置");
+                  } finally {
+                    setDeleting(false);
                   }
-                  if (selectedId === deleteTarget.id) setSelectedId(null);
-                  setDeleteTarget(null);
-                  notify("已从路由器删除配置");
                 })()
               }
             >
+              {deleting ? <Spinner /> : null}
               确认删除
             </button>
           </div>

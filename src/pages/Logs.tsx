@@ -142,7 +142,7 @@ export default function Logs() {
       await navigator.clipboard.writeText(logsText(entries));
       notify(`已复制 ${entries.length} 条日志`);
     } catch {
-      notify('复制失败，请允许浏览器访问剪贴板，或使用“导出匹配日志”。', 'error');
+      notify('复制失败，请允许浏览器访问剪贴板，或使用“导出匹配日志”', 'error');
     } finally {
       setCopying(false);
     }
@@ -162,7 +162,7 @@ export default function Logs() {
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      notify('导出失败，请检查浏览器是否允许下载文件。', 'error');
+      notify('导出失败，请检查浏览器是否允许下载文件', 'error');
     }
   }
 

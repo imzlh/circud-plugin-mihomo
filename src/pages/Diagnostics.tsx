@@ -305,7 +305,7 @@ export default function Diagnostics() {
                     <span>· {rows.length} 条记录</span>
                   </p>
                 </div>
-                <Badge tone={result.response.Status === 0 ? 'green' : 'orange'}>
+                <Badge tone={result.response.Status === 0 ? 'green' : 'red'}>
                   {responseCode?.name ?? `RCODE ${result.response.Status}`}
                 </Badge>
               </div>

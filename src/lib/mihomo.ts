@@ -270,14 +270,6 @@ export class MihomoClient {
     return this.request('/connections', { method: 'DELETE' });
   }
 
-  reloadConfig(content: string): Promise<void> {
-    return this.request('/configs?force=true', {
-      method: 'PUT',
-      body: { payload: content },
-      timeout: 30_000,
-    });
-  }
-
   dnsQuery(name: string, type: string, signal?: AbortSignal): Promise<DnsResponse> {
     const query = new URLSearchParams({ name, type });
     return this.request(`/dns/query?${query}`, { signal });

@@ -123,6 +123,7 @@ function EnhancementEditorSession(props: ProfileEnhancementEditorProps) {
   const [previewNotice, setPreviewNotice] = useState("");
   const [previewTab, setPreviewTab] = useState<"content" | "logs">("content");
   const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
   const request = useRef<{ id: number; controller?: AbortController }>({
     id: 0,
   });
@@ -236,7 +237,14 @@ function EnhancementEditorSession(props: ProfileEnhancementEditorProps) {
     props.onClose();
   }
 
+  function requestClose() {
+    if (saving) return;
+    close();
+  }
+
   async function save() {
+    if (saving) return;
+    setSaving(true);
     try {
       const error =
         props.kind === "global"
@@ -252,6 +260,8 @@ function EnhancementEditorSession(props: ProfileEnhancementEditorProps) {
       setSaveError(
         error instanceof Error ? error.message : "保存增强失败，请重试。",
       );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -353,7 +363,7 @@ function EnhancementEditorSession(props: ProfileEnhancementEditorProps) {
           ? "为配置库中的配置设置共享的 Merge 与 Script。"
           : "在订阅原文上叠加规则、代理、代理组和自定义增强。"
       }
-      onClose={close}
+      onClose={requestClose}
       wide
     >
       <div className="profile-enhancement-editor">
@@ -685,16 +695,22 @@ function EnhancementEditorSession(props: ProfileEnhancementEditorProps) {
             </Badge>
             <span>保存增强草稿，应用配置时生效。</span>
           </div>
-          <button type="button" className="button" onClick={close}>
+          <button
+            type="button"
+            className="button"
+            disabled={saving}
+            onClick={requestClose}
+          >
             关闭
           </button>
           <button
             type="button"
             className="button primary"
+            disabled={saving}
             onClick={() => void save()}
           >
-            <Save size={16} />
-            保存增强
+            {saving ? <Spinner /> : <Save size={16} />}
+            {saving ? "保存中…" : "保存增强"}
           </button>
         </div>
       </div>

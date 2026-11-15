@@ -152,7 +152,7 @@ export function Modal({
           {description && <p id={`${titleId}-description`}>{description}</p>}
         </div>
         <button className="icon-button" aria-label="关闭弹窗" onClick={onClose}>
-          <X size={19} />
+          <X size={18} />
         </button>
       </div>
       {children}

@@ -88,6 +88,7 @@ export default function Proxies() {
     connected,
     config,
     proxies,
+    proxiesPending,
     patchConfig,
     selectProxy,
     closeOnSwitch,
@@ -96,7 +97,6 @@ export default function Proxies() {
     testDelay,
     testNodeDelay,
     refresh,
-    notify,
   } = useMihomo();
   const [search, setSearch] = useState('');
   const scope = profile?.url ?? 'offline';
@@ -306,8 +306,6 @@ export default function Proxies() {
     setRefreshing(true);
     try {
       await refresh();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : '刷新失败，请重试', 'error');
     } finally {
       setRefreshing(false);
     }
@@ -443,7 +441,12 @@ export default function Proxies() {
             </div>
           )}
 
-          {visibleGroups.length === 0 ? (
+          {proxiesPending ? (
+            <div className="page-loading" role="status">
+              <LoaderCircle size={26} className="spin" />
+              正在加载代理组…
+            </div>
+          ) : visibleGroups.length === 0 ? (
             <div className="panel">
               <EmptyState
                 icon={search ? Search : Network}

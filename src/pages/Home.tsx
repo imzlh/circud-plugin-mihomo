@@ -47,6 +47,7 @@ import {
 } from "../lib/home-proxies";
 import { useHomeDelay } from "../hooks/use-home-delay";
 import { usePageVisible } from "../hooks/use-page-visible";
+import { usePoller } from "../hooks/use-poll";
 import { PREFERENCES_CHANGED } from "../lib/preference-events";
 import { managerClient, type ManagedStatus } from "../lib/manager";
 import "./home.css";
@@ -225,16 +226,12 @@ function ManagerOverview() {
     const controller = new AbortController();
     lifecycle.current = controller;
     void refresh(true, controller.signal);
-    const timer = window.setInterval(
-      () => void refresh(true, controller.signal),
-      5_000,
-    );
     return () => {
       lifecycle.current = null;
       controller.abort();
-      window.clearInterval(timer);
     };
   }, [refresh]);
+  usePoller(() => void refresh(true, lifecycle.current?.signal), 5_000);
 
   const service = status ? serviceStatus(status.service) : null;
   const config = status ? configStatus(status.config) : null;
@@ -989,11 +986,6 @@ export default function Home() {
     setPending(true);
     try {
       await state.refresh();
-    } catch (error) {
-      state.notify(
-        error instanceof Error ? error.message : "刷新失败",
-        "error",
-      );
     } finally {
       setPending(false);
     }

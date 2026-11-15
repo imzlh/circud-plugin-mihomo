@@ -41,7 +41,7 @@ function ruleTieBreaker(left: DisplayRule, right: DisplayRule): number {
 }
 
 export default function Rules() {
-  const { connected, client, rules, runAction, refresh } = useMihomo();
+  const { connected, client, rules, rulesPending, runAction } = useMihomo();
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
   const [page, setPage] = useState(1);
@@ -93,7 +93,9 @@ export default function Rules() {
     if (!connected) return;
     setRefreshing(true);
     try {
-      await runAction(refresh, '规则已刷新');
+      // runAction already invalidates every mihomo query; keep the action a
+      // no-op so the refresh does not run twice.
+      await runAction(async () => {}, '规则已刷新');
     } finally {
       if (currentSession.current === session) setRefreshing(false);
     }
@@ -203,7 +205,12 @@ export default function Rules() {
               />
             </div>
           </div>
-          {visible.length === 0 ? (
+          {rulesPending ? (
+            <div className="page-loading" role="status">
+              <LoaderCircle size={26} className="spin" />
+              正在加载规则…
+            </div>
+          ) : visible.length === 0 ? (
             <EmptyState
               icon={ListFilter}
               title={query || type !== 'all' ? '没有匹配的规则' : '当前配置没有路由规则'}

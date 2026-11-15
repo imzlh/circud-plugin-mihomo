@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useMihomo } from "./state/mihomo";
 import { bytes } from "./lib/format";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { KernelSwitcher } from "./components/KernelSwitcher";
 import { TrafficChart } from "./components/TrafficChart";
 import { Toasts } from "./components/ui";
@@ -232,28 +233,30 @@ export function App() {
               部分数据加载失败：{state.resourceError}
             </div>
           )}
-          <Suspense
-            fallback={
-              <div className="page-loading">
-                <Gauge size={26} className="spin" />
-                正在加载…
-              </div>
-            }
-          >
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/proxies" element={<Proxies />} />
-              <Route path="/providers" element={<Providers />} />
-              <Route path="/profiles" element={<Profiles />} />
-              <Route path="/connections" element={<Connections />} />
-              <Route path="/rules" element={<Rules />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/diagnostics" element={<Diagnostics />} />
-              <Route path="/mihomo-settings" element={<MihomoSettings />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="page-loading">
+                  <Gauge size={26} className="spin" />
+                  正在加载…
+                </div>
+              }
+            >
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/proxies" element={<Proxies />} />
+                <Route path="/providers" element={<Providers />} />
+                <Route path="/profiles" element={<Profiles />} />
+                <Route path="/connections" element={<Connections />} />
+                <Route path="/rules" element={<Rules />} />
+                <Route path="/logs" element={<Logs />} />
+                <Route path="/diagnostics" element={<Diagnostics />} />
+                <Route path="/mihomo-settings" element={<MihomoSettings />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
       <Toasts items={state.toasts} dismiss={state.dismissToast} />

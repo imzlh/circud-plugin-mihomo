@@ -292,7 +292,7 @@ function useMihomoState() {
   const patchConfig = async (patch: MihomoConfigPatch): Promise<boolean> => {
     const maintenance = maintenanceStore(client);
     if (!maintenance.beginConfigWrite()) {
-      notify("内核正在应用配置或执行维护，请稍后重试。", "info");
+      notify("内核正在应用配置或执行维护，请稍后重试", "info");
       return false;
     }
     try {
@@ -326,36 +326,6 @@ function useMihomoState() {
       maintenance.endConfigWrite();
     }
   };
-  const reloadConfig = async (
-    content: string,
-    onError?: (message: string) => void,
-  ): Promise<boolean> => {
-    if (!connected || !content.trim()) return false;
-    const maintenance = maintenanceStore(client);
-    if (!maintenance.beginConfigWrite()) {
-      const message = "内核正在应用配置或执行维护，请稍后重试。";
-      onError?.(message);
-      notify(message, "info");
-      return false;
-    }
-    try {
-      return await runAction(async () => {
-        try {
-          await client.reloadConfig(content);
-        } catch (error) {
-          if (currentActionSession.current === actionSession)
-            onError?.(
-              error instanceof Error
-                ? error.message
-                : "重新加载失败，请检查配置内容",
-            );
-          throw error;
-        }
-      }, "配置已重新加载");
-    } finally {
-      maintenance.endConfigWrite();
-    }
-  };
   const setCloseOnSwitch = (enabled: boolean) => {
     setClosePreference({ scope: preferenceScope, enabled });
     try {
@@ -383,7 +353,7 @@ function useMihomoState() {
       if (currentActionSession.current !== actionSession) return;
       if (result.error || result.failed) {
         notify(
-          `已切换到 ${name}，旧连接清理未完成：${result.error ?? `${result.failed} 条关闭失败`}。已关闭 ${result.closed} 条。`,
+          `已切换到 ${name}，旧连接清理未完成：${result.error ?? `${result.failed} 条关闭失败`}。已关闭 ${result.closed} 条`,
           "error",
         );
       } else {
@@ -487,14 +457,11 @@ function useMihomoState() {
         ? candidates[0]
         : undefined;
     if (declaredProvider && !provider) {
-      notify("暂未确认节点所属代理集，请刷新资源后重试。", "info");
+      notify("暂未确认节点所属代理集，请刷新资源后重试", "info");
       return;
     }
     if (!coreNode && candidates.length > 1 && !provider) {
-      notify(
-        "多个代理集包含同名节点，请在资源页选择具体代理集后测速。",
-        "info",
-      );
+      notify("多个代理集包含同名节点，请在资源页选择具体代理集后测速", "info");
       return;
     }
     const targetGroup = group ? proxies[group] : undefined;
@@ -516,6 +483,18 @@ function useMihomoState() {
     }, "节点延迟测试完成");
     return measured;
   };
+  // Pages show loading placeholders instead of "no data" empty states while
+  // the first fetch after connecting is still in flight.
+  const proxiesPending =
+    connected && proxiesQuery.isPending && proxiesQuery.data === undefined;
+  const providersPending =
+    connected && providersQuery.isPending && providersQuery.data === undefined;
+  const ruleProvidersPending =
+    connected &&
+    ruleProvidersQuery.isPending &&
+    ruleProvidersQuery.data === undefined;
+  const rulesPending =
+    connected && rulesQuery.isPending && rulesQuery.data === undefined;
   const resourceError = [
     configQuery.error,
     proxiesQuery.error,
@@ -541,6 +520,10 @@ function useMihomoState() {
     providers: providersQuery.data ?? {},
     ruleProviders: ruleProvidersQuery.data ?? {},
     rules: rulesQuery.data ?? [],
+    proxiesPending,
+    providersPending,
+    ruleProvidersPending,
+    rulesPending,
     version: versionQuery.data?.version ?? "—",
     traffic,
     history,
@@ -556,7 +539,6 @@ function useMihomoState() {
     refresh,
     runAction,
     patchConfig,
-    reloadConfig,
     selectProxy,
     closeOnSwitch,
     setCloseOnSwitch,
