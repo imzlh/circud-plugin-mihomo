@@ -94,12 +94,25 @@ function useMihomoState() {
   const [logs, setLogs] = useState<
     Array<LogEntry & { id: number; time: string }>
   >([]);
+  // Debug-level frames arrive per request; buffer them and flush on one timer.
+  const pendingLogs = useRef<
+    Array<LogEntry & { id: number; time: string }>
+  >([]);
   const [live, setLive] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counter = useRef(0);
   const activeSelections = useRef(new Set<string>());
   const toastTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
   useEffect(() => () => toastTimers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!pendingLogs.current.length) return;
+      const batch = pendingLogs.current;
+      pendingLogs.current = [];
+      setLogs((items) => [...items, ...batch].slice(-1000));
+    }, 250);
+    return () => clearInterval(timer);
+  }, []);
   const notify = useCallback(
     (text: string, type: Toast["type"] = "success") => {
       const id = ++counter.current;
@@ -185,6 +198,8 @@ function useMihomoState() {
       client.subscribe<Traffic>(
         "traffic",
         (data) => {
+          // Hidden tabs skip visual frames; cumulative totals resume on return.
+          if (document.hidden) return;
           setTraffic(data);
           setHistory((items) => [...items.slice(-59), data]);
           if (data.upTotal !== undefined || data.downTotal !== undefined)
@@ -199,14 +214,20 @@ function useMihomoState() {
           if (status !== "open") setTraffic({ up: 0, down: 0 });
         },
       ),
-      client.subscribe<Memory>("memory", (data) => setMemory(data.inuse)),
+      client.subscribe<Memory>("memory", (data) => {
+        if (!document.hidden) setMemory(data.inuse);
+      }),
       client.subscribe<LogEntry>(
         "logs",
-        (data) =>
-          setLogs((items) => [
-            ...items.slice(-999),
-            { ...data, id: ++counter.current, time: new Date().toISOString() },
-          ]),
+        (data) => {
+          pendingLogs.current.push({
+            ...data,
+            id: ++counter.current,
+            time: new Date().toISOString(),
+          });
+          if (pendingLogs.current.length > 1000)
+            pendingLogs.current.splice(0, pendingLogs.current.length - 1000);
+        },
         undefined,
         { level: "debug" },
       ),
@@ -545,7 +566,10 @@ function useMihomoState() {
     clearProxySelection,
     testDelay,
     testNodeDelay,
-    clearLogs: () => setLogs([]),
+    clearLogs: () => {
+      pendingLogs.current = [];
+      setLogs([]);
+    },
   };
 }
 

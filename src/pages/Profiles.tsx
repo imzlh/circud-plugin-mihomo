@@ -969,7 +969,7 @@ function SessionProfiles() {
       >
         <button
           className="button"
-          disabled={!!library.error}
+          disabled={!!library.error || saving}
           onClick={() => {
             cancelReading();
             fileInput.current?.click();
@@ -980,7 +980,7 @@ function SessionProfiles() {
         </button>
         <button
           className="button"
-          disabled={!!library.error}
+          disabled={!!library.error || saving}
           onClick={() => {
             cancelReading();
             setSourceError("");
@@ -991,7 +991,7 @@ function SessionProfiles() {
         </button>
         <button
           className="button primary"
-          disabled={!!library.error}
+          disabled={!!library.error || saving}
           onClick={() => {
             cancelReading();
             openEditor(emptyDraft());
@@ -1177,7 +1177,7 @@ function SessionProfiles() {
             action={
               <button
                 className="button primary"
-                disabled={!!library.error}
+                disabled={!!library.error || saving}
                 onClick={() => openEditor(emptyDraft())}
               >
                 <FilePlus2 size={16} />

@@ -303,9 +303,27 @@ export default function Providers() {
           <div className="provider-page-controls">
             <div className="segmented" role="tablist" aria-label="资源类型">
               <button
+                id="providers-tab-proxies"
                 role="tab"
                 aria-selected={tab === 'proxies'}
+                aria-controls="providers-panel"
+                tabIndex={tab === 'proxies' ? 0 : -1}
                 className={tab === 'proxies' ? 'active' : ''}
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const next =
+                    event.key === 'Home'
+                      ? 'proxies'
+                      : event.key === 'End'
+                        ? 'rules'
+                        : tab === 'proxies'
+                          ? 'rules'
+                          : 'proxies';
+                  setTab(next);
+                  setQuery('');
+                  document.getElementById(`providers-tab-${next}`)?.focus();
+                }}
                 onClick={() => {
                   setTab('proxies');
                   setQuery('');
@@ -315,9 +333,27 @@ export default function Providers() {
                 代理集 <span>{Object.keys(providers).length}</span>
               </button>
               <button
+                id="providers-tab-rules"
                 role="tab"
                 aria-selected={tab === 'rules'}
+                aria-controls="providers-panel"
+                tabIndex={tab === 'rules' ? 0 : -1}
                 className={tab === 'rules' ? 'active' : ''}
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const next =
+                    event.key === 'Home'
+                      ? 'proxies'
+                      : event.key === 'End'
+                        ? 'rules'
+                        : tab === 'proxies'
+                          ? 'rules'
+                          : 'proxies';
+                  setTab(next);
+                  setQuery('');
+                  document.getElementById(`providers-tab-${next}`)?.focus();
+                }}
                 onClick={() => {
                   setTab('rules');
                   setQuery('');
@@ -333,6 +369,12 @@ export default function Providers() {
               placeholder={tab === 'proxies' ? '搜索代理集…' : '搜索规则集…'}
             />
           </div>
+          <div
+            className="page-stack"
+            role="tabpanel"
+            id="providers-panel"
+            aria-labelledby={tab === 'proxies' ? 'providers-tab-proxies' : 'providers-tab-rules'}
+          >
           {tab === 'proxies' ? (
             <>
               <div className="toolbar">
@@ -564,6 +606,7 @@ export default function Providers() {
               )}
             </section>
           )}
+          </div>
           <p className="resource-hint">
             <Box size={15} />
             更新只刷新所选资源的内容；运行配置由内核加载。

@@ -45,6 +45,29 @@ export const TrafficChart = memo(
         )}
         <div
           className="chart-plot"
+          tabIndex={mini ? undefined : 0}
+          aria-label={
+            mini
+              ? undefined
+              : '最近 60 秒上传和下载速率曲线，左右方向键查看逐秒数值，Home 和 End 跳到首尾'
+          }
+          onKeyDown={(event) => {
+            if (mini) return;
+            const last = samples.length - 1;
+            if (event.key === 'Home' || event.key === 'End') {
+              event.preventDefault();
+              setHover(event.key === 'Home' ? 0 : last);
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+              event.preventDefault();
+              const step = event.key === 'ArrowRight' ? 1 : -1;
+              setHover((current) =>
+                Math.min(last, Math.max(0, (current ?? last) + step)),
+              );
+            } else if (event.key === 'Escape') {
+              setHover(null);
+            }
+          }}
+          onBlur={() => setHover(null)}
           onMouseMove={(event) => {
             if (mini) return;
             const rect = event.currentTarget.getBoundingClientRect();
@@ -127,6 +150,13 @@ export const TrafficChart = memo(
               ↓ {bytes(point.down)}/s
               <br />↑ {bytes(point.up)}/s
             </div>
+          )}
+          {!mini && (
+            <span className="visually-hidden" aria-live="polite">
+              {point
+                ? `${samples.length - 1 - (hover ?? 0)} 秒前：下载 ${bytes(point.down)}/s，上传 ${bytes(point.up)}/s`
+                : ''}
+            </span>
           )}
           {!mini && (
             <div className="chart-x-labels">
