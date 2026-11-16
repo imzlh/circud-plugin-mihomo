@@ -13,7 +13,9 @@ define Package/cno-mihomo-companion
   CATEGORY:=Network
   SUBMENU:=Web Servers/Proxies
   TITLE:=Transactional OpenWrt companion for CNO Mihomo Manager
+  URL:=https://github.com/imzlh/circud-plugin-mihomo
   DEPENDS:=+cno +mihomo +firewall4 +ip-full +kmod-nft-tproxy +kmod-tun
+  PKGARCH:=all
 endef
 
 define Package/cno-mihomo-companion/description

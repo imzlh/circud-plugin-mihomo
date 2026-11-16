@@ -68,6 +68,13 @@ pnpm test:e2e
 
 `pnpm build:package` 会依次构建权威 profile compiler、生产 UI 和 circud ZIP。默认产物为 `artifacts/io.cno.mihomo.zip`。构建门禁包括固定 ID/prefix/base、严格 manifest、无符号链接与路径穿越、静态资源完整性、8 MiB ZIP/16 MiB 解压预算、稳定 mtime/权限/条目顺序，以及 `unzip -t`。
 
+GitHub Actions 的 `Build release packages` workflow 还会使用官方 OpenWrt SDK
+构建 companion。OpenWrt 24.10 生成通用架构的 `.ipk`，snapshot 生成通用架构的
+`.apk`；companion 只包含 TypeScript、shell 和配置文件，因此 IPK 标记为
+`Architecture: all`，对应的 APK 标记为 `arch: noarch`。每次构建都会上传 ZIP、IPK
+和 APK workflow artifacts；推送 `v*` tag 时，三种产物会一并附加到 GitHub
+Release。
+
 开发源码以 `management.js` 为入口并保留 `package/lib/*` 的领域模块边界；生产发布用 esbuild 将后端 ESM 图和 YAML 依赖压成 `management.bundle.min.js`，只保留 `circud` 宿主 import。发布 ZIP 不再携带开发入口和 `package/lib/*`。circud 本身支持多文件相对 ESM，bundle 是依赖自包含、发布体积与加载优化，不是运行时限制。UI 位于 ZIP 的 `static/`。
 
 ## 安装
@@ -75,10 +82,10 @@ pnpm test:e2e
 先安装 OpenWrt companion 包，再安装 circud package：
 
 ```sh
-# OpenWrt SDK/ImmortalWrt SDK 中构建 companion
+# OpenWrt 24.10 SDK 中构建 companion IPK；snapshot SDK 同一命令生成 APK
 make package/cno-mihomo-companion/compile V=s
 
-# 目标设备安装生成的 ipk 后
+# 目标设备安装生成的 IPK 或 APK 后
 circud install ./artifacts/io.cno.mihomo.zip
 ```
 

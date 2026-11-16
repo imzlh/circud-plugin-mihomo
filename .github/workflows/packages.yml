@@ -1,0 +1,227 @@
+name: Build release packages
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: packages-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  circud-package:
+    name: circud package ZIP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test package contracts
+        run: pnpm test:package
+
+      - name: Build circud package
+        run: pnpm build:package
+
+      - name: Record checksum
+        run: sha256sum artifacts/io.cno.mihomo.zip > artifacts/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: circud-plugin-mihomo
+          path: |
+            artifacts/io.cno.mihomo.zip
+            artifacts/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+
+  openwrt-package:
+    name: OpenWrt ${{ matrix.series }} / ${{ matrix.format }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: "24.10"
+            sdk_branch: openwrt-24.10
+            format: ipk
+          - series: snapshot
+            sdk_branch: master
+            format: apk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build companion package
+        uses: openwrt/gh-action-sdk@v11
+        env:
+          ARCH: x86_64-${{ matrix.sdk_branch }}
+          BUILD_LOG: 1
+          FEEDNAME: cno-mihomo
+          INDEX: 0
+          PACKAGES: cno-mihomo-companion
+          V: s
+
+      - name: Collect and validate package
+        id: package
+        shell: bash
+        env:
+          EXPECTED_FORMAT: ${{ matrix.format }}
+          OPENWRT_SERIES: ${{ matrix.series }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/cno-mihomo-$OPENWRT_SERIES"
+          mkdir -p "$output"
+          mapfile -d '' packages < <(
+            find bin/packages bin/targets -type f \
+              -name "cno-mihomo-companion*.${EXPECTED_FORMAT}" -print0
+          )
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            printf 'expected one .%s package, found %d\n' \
+              "$EXPECTED_FORMAT" "${#packages[@]}" >&2
+            find bin -maxdepth 6 -type f -print >&2 || true
+            exit 1
+          fi
+          package=${packages[0]}
+          test -s "$package"
+          cp "$package" "$output/"
+          {
+            printf 'OpenWrt: %s\n' "$OPENWRT_SERIES"
+            printf 'Format: %s\n' "$EXPECTED_FORMAT"
+            sha256sum "$output"/*."$EXPECTED_FORMAT"
+          } > "$output/build-info.txt"
+
+          if [[ "$EXPECTED_FORMAT" == ipk ]]; then
+            listing=$(tar -tf "$package")
+            grep -Fxq './control.tar.gz' <<<"$listing"
+            grep -Fxq './data.tar.gz' <<<"$listing"
+            control=$(tar -xOf "$package" ./control.tar.gz | tar -xOzf - ./control)
+            grep -Fxq 'Package: cno-mihomo-companion' <<<"$control"
+            grep -Fxq 'Architecture: all' <<<"$control"
+            payload=$(tar -xOf "$package" ./data.tar.gz | tar -tzf -)
+            grep -Fxq './usr/sbin/cno-mihomod' <<<"$payload"
+            grep -Fxq './usr/sbin/cno-mihomoctl' <<<"$payload"
+            grep -Fxq './etc/init.d/cno-mihomod' <<<"$payload"
+            grep -Fxq './etc/init.d/cno-mihomo-core' <<<"$payload"
+            grep -Fxq './usr/lib/io.cno.mihomo/daemon.ts' <<<"$payload"
+          fi
+          echo "directory=$output" >> "$GITHUB_OUTPUT"
+
+      - name: Validate APK metadata and payload
+        if: matrix.format == 'apk'
+        shell: bash
+        env:
+          PACKAGE_DIR: ${{ steps.package.outputs.directory }}
+          SDK_IMAGE: ghcr.io/openwrt/sdk:x86_64-${{ matrix.sdk_branch }}
+        run: |
+          set -euo pipefail
+          docker pull "$SDK_IMAGE"
+          docker run --rm \
+            -v "$PACKAGE_DIR:/packages:ro" \
+            --entrypoint sh \
+            "$SDK_IMAGE" -euxc '
+              if [ -f setup.sh ]; then bash setup.sh; fi
+              apk_bin=staging_dir/host/bin/apk
+              test -x "$apk_bin"
+              package=$(find /packages -maxdepth 1 \
+                -name "cno-mihomo-companion*.apk" -print -quit)
+              test -n "$package"
+              work=$(mktemp -d)
+              trap "rm -rf $work" EXIT
+              "$apk_bin" adbdump --format json "$package" > "$work/package.json"
+              grep -Eq '"'"'"name"[[:space:]]*:[[:space:]]*"cno-mihomo-companion"'"'"' \
+                "$work/package.json"
+              grep -Eq '"'"'"arch"[[:space:]]*:[[:space:]]*"noarch"'"'"' \
+                "$work/package.json"
+              mkdir "$work/root"
+              "$apk_bin" --allow-untrusted extract --no-chown \
+                --destination "$work/root" "$package"
+              test -x "$work/root/usr/sbin/cno-mihomod"
+              test -x "$work/root/usr/sbin/cno-mihomoctl"
+              test -x "$work/root/etc/init.d/cno-mihomod"
+              test -x "$work/root/etc/init.d/cno-mihomo-core"
+              test -f "$work/root/usr/lib/io.cno.mihomo/daemon.ts"
+            '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cno-mihomo-companion-${{ matrix.series }}-${{ matrix.format }}
+          path: ${{ steps.package.outputs.directory }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload SDK log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cno-mihomo-companion-${{ matrix.series }}-logs
+          path: |
+            logs/
+            bin/logs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release:
+    name: Attach packages to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - circud-package
+      - openwrt-package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "cno-mihomo-*"
+          path: release-assets
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: circud-plugin-mihomo
+          path: release-assets/circud-plugin-mihomo
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' packages < <(
+            find release-assets -type f \
+              \( -name '*.ipk' -o -name '*.apk' -o -name 'io.cno.mihomo.zip' \) \
+              -print0
+          )
+          if [[ ${#packages[@]} -ne 3 ]]; then
+            printf 'expected ZIP, IPK and APK release assets, found %d\n' \
+              "${#packages[@]}" >&2
+            find release-assets -type f -print >&2
+            exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${packages[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${packages[@]}" \
+              --generate-notes --title "CNO Mihomo Manager $GITHUB_REF_NAME"
+          fi
