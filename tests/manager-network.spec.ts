@@ -2,6 +2,11 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const managerBase = "/io.cno.mihomo/api/v1";
 
+const networkArea = (page: Page) =>
+  page
+    .getByRole("navigation", { name: "内核设置分类" })
+    .getByRole("button", { name: /路由器接管/ });
+
 const initial = {
   tcpMode: "redirect",
   udpMode: "tproxy",
@@ -143,7 +148,7 @@ test("Manager settings save TUN ownership and advanced interception policy", asy
 }) => {
   const api = await fixture(page);
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await networkArea(page).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   await expect(manager.getByText("revision 4", { exact: true })).toBeVisible();
 
@@ -212,7 +217,7 @@ test("Manager settings keep runtime changes pending without an active profile", 
 }) => {
   const api = await fixture(page, { activeProfile: false });
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await networkArea(page).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   const enable = manager.getByRole("button", { name: "启用" });
 
@@ -240,7 +245,7 @@ test("Manager settings report a saved revision when runtime apply fails", async 
 }) => {
   const api = await fixture(page, { applyState: "failed" });
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await networkArea(page).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
 
   await manager.getByLabel("接管模式", { exact: true }).selectOption("tun");
@@ -262,7 +267,7 @@ test("Manager settings reconcile active interception for policy-only changes", a
 }) => {
   const api = await fixture(page, { networkDesired: true });
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await networkArea(page).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
 
   await manager.getByRole("switch", { name: "路由器代理" }).click();
@@ -282,7 +287,7 @@ test("Manager settings persist the device-side restart schedule", async ({
 }) => {
   const api = await fixture(page);
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await networkArea(page).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   await manager.getByRole("switch", { name: "启用定时重启" }).click();
   await manager.getByLabel("重启时间", { exact: true }).fill("04:15");

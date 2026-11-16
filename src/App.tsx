@@ -51,7 +51,7 @@ const links = [
   { path: "/proxies", label: "代理", icon: Wifi, section: "网络管理" },
   { path: "/providers", label: "资源", icon: Box },
   { path: "/profiles", label: "配置", icon: Files },
-  { path: "/mihomo-settings", label: "Mihomo 设置", icon: SlidersHorizontal },
+  { path: "/mihomo-settings", label: "内核设置", icon: SlidersHorizontal },
   { path: "/connections", label: "连接", icon: Network },
   { path: "/rules", label: "规则", icon: RouteIcon },
   { path: "/logs", label: "日志", icon: FileText },
@@ -164,10 +164,10 @@ export function App() {
           <div className="sidebar-footer">
             <span>WEB UI · v{appVersion}</span>
             <a
-              href="https://github.com/MetaCubeX/mihomo"
+              href="https://github.com/imzlh/circud-plugin-mihomo"
               target="_blank"
               rel="noreferrer"
-              aria-label="Mihomo GitHub"
+              aria-label="circud-plugin-mihomo GitHub"
             >
               <Github size={15} />
             </a>

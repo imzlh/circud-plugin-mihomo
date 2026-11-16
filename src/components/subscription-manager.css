@@ -1,6 +1,26 @@
 .subscription-manager {
   padding: 16px;
 }
+.profiles-support-grid > .subscription-manager {
+  padding: 28px 0 30px;
+}
+.profiles-support-grid > .subscription-manager .subscription-title-line strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+.profiles-support-grid > .subscription-manager .subscription-title-line > svg {
+  width: 17px;
+  height: 17px;
+}
+.profiles-support-grid > .subscription-manager .subscription-heading p {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.profiles-support-grid > .subscription-manager .subscription-empty,
+.profiles-support-grid > .subscription-manager .subscription-loading {
+  padding: 18px 0 0;
+  font-size: 12px;
+}
 .subscription-heading,
 .subscription-title-line,
 .subscription-item,

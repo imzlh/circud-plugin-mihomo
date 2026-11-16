@@ -147,9 +147,7 @@ function truncateProfileRender(content: string): {
   totalLines: number;
   truncated: boolean;
 } | null {
-  if (
-    new TextEncoder().encode(content).byteLength <= PROFILE_RENDER_MAX_BYTES
-  )
+  if (new TextEncoder().encode(content).byteLength <= PROFILE_RENDER_MAX_BYTES)
     return null;
   const lines = content.split("\n");
   if (lines.length <= PROFILE_RENDER_MAX_LINES)
@@ -834,9 +832,7 @@ function SessionProfiles() {
               changedKeys: stage.changedKeys,
             })),
             changedKeys: [
-              ...new Set(
-                preview.stages.flatMap((stage) => stage.changedKeys),
-              ),
+              ...new Set(preview.stages.flatMap((stage) => stage.changedKeys)),
             ],
           };
         });
@@ -965,41 +961,13 @@ function SessionProfiles() {
     <div className="page-stack profiles-page">
       <PageHeader
         title="配置"
-        description="收藏完整 YAML 配置，在浏览器中编辑，并按需应用到已连接的内核。"
+        description="集中管理完整 YAML、订阅和混入；预览确认后再应用到内核。"
+      />
+
+      <section
+        className="profiles-library"
+        aria-labelledby="profiles-library-heading"
       >
-        <button
-          className="button"
-          disabled={!!library.error || saving}
-          onClick={() => {
-            cancelReading();
-            fileInput.current?.click();
-          }}
-        >
-          <FileUp size={16} />
-          导入文件
-        </button>
-        <button
-          className="button"
-          disabled={!!library.error || saving}
-          onClick={() => {
-            cancelReading();
-            setSourceError("");
-            setSourceOpen(true);
-          }}
-        >
-          <Link2 size={16} />从 URL 导入
-        </button>
-        <button
-          className="button primary"
-          disabled={!!library.error || saving}
-          onClick={() => {
-            cancelReading();
-            openEditor(emptyDraft());
-          }}
-        >
-          <FilePlus2 size={16} />
-          新建配置
-        </button>
         <input
           ref={fileInput}
           type="file"
@@ -1025,416 +993,465 @@ function SessionProfiles() {
             void importArchive(file);
           }}
         />
-      </PageHeader>
 
-      <div className="profiles-overview">
-        <span>
-          <FileCode2 size={15} />
-          路由器配置库
-          <Badge tone="purple">{library.profiles.length} 份配置</Badge>
-        </span>
-        <span>完整原文由 Mihomo 管理包持久保存</span>
-      </div>
-      <SubscriptionManager
-        profiles={library.profiles}
-        onProfilesChanged={() => refreshLibrary()}
-      />
-      <MixinManager
-        selected={selected}
-        onProfilesChanged={() => refreshLibrary()}
-      />
-      {library.error && (
-        <div className="profile-error" role="alert">
-          <span>{library.error}</span>
-          <button
-            className="button small"
-            onClick={() =>
-              void refreshLibrary().catch((error) =>
-                setLibrary((current) => ({
-                  ...current,
-                  error: errorText(error),
-                })),
-              )
-            }
-          >
-            重新读取
-          </button>
+        <div className="profiles-overview">
+          <div className="profiles-section-copy">
+            <span>
+              <FileCode2 size={17} />
+              <strong id="profiles-library-heading">配置库</strong>
+              <Badge tone="purple">{library.profiles.length}</Badge>
+            </span>
+            <p>保留 YAML 原文和来源信息，由 Mihomo 管理包持久保存。</p>
+          </div>
+          <div className="profile-library-primary-actions">
+            <button
+              className="button small"
+              disabled={!!library.error || saving}
+              onClick={() => {
+                cancelReading();
+                fileInput.current?.click();
+              }}
+            >
+              <FileUp size={14} />
+              导入文件
+            </button>
+            <button
+              className="button small"
+              disabled={!!library.error || saving}
+              onClick={() => {
+                cancelReading();
+                setSourceError("");
+                setSourceOpen(true);
+              }}
+            >
+              <Link2 size={14} />从 URL 导入
+            </button>
+            <button
+              className="button primary small"
+              disabled={!!library.error || saving}
+              onClick={() => {
+                cancelReading();
+                openEditor(emptyDraft());
+              }}
+            >
+              <FilePlus2 size={14} />
+              新建配置
+            </button>
+          </div>
         </div>
-      )}
-      {operationError && (
-        <div className="profile-error" role="alert">
-          {operationError}
-        </div>
-      )}
-      {globalState.error && (
-        <div className="profile-error" role="alert">
-          {globalState.error}
-        </div>
-      )}
-      <div className="profiles-toolbar">
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="搜索配置名称或描述…"
-        />
-        {fetching && (
-          <span className="profile-loading">
-            <Spinner />
-            正在读取配置…
-          </span>
+
+        {library.error && (
+          <div className="profile-error" role="alert">
+            <span>{library.error}</span>
+            <button
+              className="button small"
+              onClick={() =>
+                void refreshLibrary().catch((error) =>
+                  setLibrary((current) => ({
+                    ...current,
+                    error: errorText(error),
+                  })),
+                )
+              }
+            >
+              重新读取
+            </button>
+          </div>
         )}
-        <div className="profile-library-actions">
-          <button
-            className="button small"
-            onClick={() => openEnhancement("global")}
-          >
-            <SlidersHorizontal size={14} />
-            全局增强
-          </button>
-          <button
-            className="button small"
-            disabled={!!library.error}
-            onClick={() => {
-              cancelReading();
-              archiveInput.current?.click();
-            }}
-          >
-            <Archive size={14} />
-            导入归档
-          </button>
-          <button
-            className="button small"
-            disabled={!library.profiles.length}
-            onClick={() => exportArchive(library.profiles)}
-          >
-            <Download size={14} />
-            导出全部归档
-          </button>
-          <button
-            className="button small"
-            disabled={!library.profiles.length}
-            aria-pressed={batchMode}
-            onClick={() => {
-              setBatchMode(!batchMode);
-              setBatchSelection(new Set());
-            }}
-          >
-            {batchMode ? "退出批量" : "批量管理"}
-          </button>
-        </div>
-      </div>
-
-      {batchMode && (
-        <div className="panel profile-batch-toolbar" aria-label="批量配置操作">
-          <strong>已选择 {batchProfiles.length} 份</strong>
-          <button
-            className="button small"
-            disabled={!shown.length}
-            onClick={() =>
-              setBatchSelection(new Set(shown.map((item) => item.id)))
-            }
-          >
-            仅选择当前筛选结果
-          </button>
-          <button
-            className="button small"
-            disabled={!batchProfiles.length}
-            onClick={() => setBatchSelection(new Set())}
-          >
-            取消选择
-          </button>
-          <span className="profile-batch-spacer" />
-          <button
-            className="button small"
-            disabled={!batchProfiles.length}
-            onClick={() => exportArchive(batchProfiles)}
-          >
-            <Download size={14} />
-            导出选中归档
-          </button>
-          <button
-            className="button small danger"
-            disabled={!batchProfiles.length || !!library.error}
-            onClick={() => {
-              cancelReading();
-              setOperationError("");
-              setBatchDelete(batchProfiles);
-            }}
-          >
-            <Trash2 size={14} />
-            删除选中配置
-          </button>
-          <p>归档包含完整 YAML、名称、描述和来源 URL，可在配置库中重新导入。</p>
-        </div>
-      )}
-
-      {library.profiles.length === 0 ? (
-        <section className="panel profile-empty">
-          <EmptyState
-            icon={FileCode2}
-            title="添加第一份完整配置"
-            description="导入本地 YAML，粘贴配置原文，或由管理服务从 HTTP/HTTPS URL 读取。"
-            action={
-              <button
-                className="button primary"
-                disabled={!!library.error || saving}
-                onClick={() => openEditor(emptyDraft())}
-              >
-                <FilePlus2 size={16} />
-                新建配置
-              </button>
-            }
+        {operationError && (
+          <div className="profile-error" role="alert">
+            {operationError}
+          </div>
+        )}
+        {globalState.error && (
+          <div className="profile-error" role="alert">
+            {globalState.error}
+          </div>
+        )}
+        <div className="profiles-toolbar">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="搜索配置名称或描述…"
           />
-        </section>
-      ) : (
-        <div className="profiles-layout">
-          <section className="profile-list" aria-label="浏览器配置列表">
-            {shown.length === 0 ? (
-              <div className="panel">
-                <EmptyState
-                  title="没有匹配的配置"
-                  description="试试其他名称、描述或来源地址。"
-                />
-              </div>
-            ) : (
-              shown.map((item) => {
-                const recent = isRecentlyApplied(item);
-                return (
-                  <div
-                    key={item.id}
-                    className={`profile-list-item${batchMode ? " is-batch-mode" : ""}`}
-                  >
-                    {batchMode && (
-                      <input
-                        className="profile-batch-checkbox"
-                        type="checkbox"
-                        aria-label={`批量选择 ${item.name}`}
-                        checked={batchSelection.has(item.id)}
-                        onChange={(event) =>
-                          setBatchSelection((current) => {
-                            const next = new Set(current);
-                            if (event.target.checked) next.add(item.id);
-                            else next.delete(item.id);
-                            return next;
-                          })
-                        }
-                      />
-                    )}
-                    <button
-                      className={`profile-card${selected?.id === item.id ? " is-selected" : ""}`}
-                      aria-label={`选择配置 ${item.name}`}
-                      aria-pressed={selected?.id === item.id}
-                      onClick={() => {
-                        cancelReading();
-                        setSelectedId(item.id);
-                        setOperationError("");
-                      }}
-                    >
-                      <span className="profile-card-top">
-                        <span className="profile-file-icon">
-                          {item.sourceUrl ? (
-                            <Globe2 size={20} />
-                          ) : (
-                            <FileCode2 size={20} />
-                          )}
-                        </span>
-                        <span className="profile-card-name">{item.name}</span>
-                        {selected?.id === item.id && <Check size={17} />}
-                      </span>
-                      <span className="profile-card-description">
-                        {item.description ||
-                          (item.sourceUrl
-                            ? "来自远程配置地址"
-                            : "本地 YAML 配置")}
-                      </span>
-                      <span className="profile-card-meta">
-                        <span>
-                          {item.sourceUrl ? "URL" : "本地"} ·{" "}
-                          {bytes(
-                            new TextEncoder().encode(item.content).byteLength,
-                          )}
-                        </span>
-                        <span>
-                          {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
-                        </span>
-                      </span>
-                      {recent && (
-                        <span className="profile-card-applied">
-                          <CheckCircle2 size={12} />
-                          本会话最近应用
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </section>
-          {selected && (
-            <section className="profile-detail" aria-label="配置详情">
-              <div className="profile-detail-heading">
-                <div>
-                  <span className="profile-eyebrow">
-                    {selected.sourceUrl ? "远程来源 · 手动更新" : "本地配置"}
-                  </span>
-                  <h2>{selected.name}</h2>
-                </div>
+          {fetching && (
+            <span className="profile-loading">
+              <Spinner />
+              正在读取配置…
+            </span>
+          )}
+          <div className="profile-library-actions">
+            <button
+              className="button small"
+              onClick={() => openEnhancement("global")}
+            >
+              <SlidersHorizontal size={14} />
+              全局增强
+            </button>
+            <button
+              className="button small"
+              disabled={!!library.error}
+              onClick={() => {
+                cancelReading();
+                archiveInput.current?.click();
+              }}
+            >
+              <Archive size={14} />
+              导入归档
+            </button>
+            <button
+              className="button small"
+              disabled={!library.profiles.length}
+              onClick={() => exportArchive(library.profiles)}
+            >
+              <Download size={14} />
+              导出归档
+            </button>
+            <button
+              className="button small"
+              disabled={!library.profiles.length}
+              aria-pressed={batchMode}
+              onClick={() => {
+                setBatchMode(!batchMode);
+                setBatchSelection(new Set());
+              }}
+            >
+              {batchMode ? "退出批量" : "批量管理"}
+            </button>
+          </div>
+        </div>
+
+        {batchMode && (
+          <div className="profile-batch-toolbar" aria-label="批量配置操作">
+            <strong>已选择 {batchProfiles.length} 份</strong>
+            <button
+              className="button small"
+              disabled={!shown.length}
+              onClick={() =>
+                setBatchSelection(new Set(shown.map((item) => item.id)))
+              }
+            >
+              仅选择当前筛选结果
+            </button>
+            <button
+              className="button small"
+              disabled={!batchProfiles.length}
+              onClick={() => setBatchSelection(new Set())}
+            >
+              取消选择
+            </button>
+            <span className="profile-batch-spacer" />
+            <button
+              className="button small"
+              disabled={!batchProfiles.length}
+              onClick={() => exportArchive(batchProfiles)}
+            >
+              <Download size={14} />
+              导出选中归档
+            </button>
+            <button
+              className="button small danger"
+              disabled={!batchProfiles.length || !!library.error}
+              onClick={() => {
+                cancelReading();
+                setOperationError("");
+                setBatchDelete(batchProfiles);
+              }}
+            >
+              <Trash2 size={14} />
+              删除选中配置
+            </button>
+            <p>
+              归档包含完整 YAML、名称、描述和来源 URL，可在配置库中重新导入。
+            </p>
+          </div>
+        )}
+
+        {library.profiles.length === 0 ? (
+          <section className="profile-empty">
+            <EmptyState
+              icon={FileCode2}
+              title="添加第一份配置"
+              description="导入 YAML、粘贴原文，或从 HTTP/HTTPS 地址读取。"
+              action={
                 <button
                   className="button primary"
-                  disabled={coreBusy}
-                  title={
-                    coreBusy
-                      ? "等待当前内核操作完成"
-                      : connected
-                        ? "应用此完整配置"
-                        : "应用并启动第一份托管配置"
-                  }
-                  onClick={() => void prepareApplication(selected)}
+                  disabled={!!library.error || saving}
+                  onClick={() => openEditor(emptyDraft())}
                 >
-                  <Play size={15} />
-                  应用配置
+                  <FilePlus2 size={16} />
+                  新建配置
                 </button>
-              </div>
-              {selected.description && (
-                <p className="profile-description">{selected.description}</p>
+              }
+            />
+          </section>
+        ) : (
+          <div className="profiles-layout">
+            <section className="profile-list" aria-label="浏览器配置列表">
+              {shown.length === 0 ? (
+                <div className="profile-list-empty">
+                  <EmptyState
+                    title="没有匹配的配置"
+                    description="试试其他名称、描述或来源地址。"
+                  />
+                </div>
+              ) : (
+                shown.map((item) => {
+                  const recent = isRecentlyApplied(item);
+                  return (
+                    <div
+                      key={item.id}
+                      className={`profile-list-item${batchMode ? " is-batch-mode" : ""}`}
+                    >
+                      {batchMode && (
+                        <input
+                          className="profile-batch-checkbox"
+                          type="checkbox"
+                          aria-label={`批量选择 ${item.name}`}
+                          checked={batchSelection.has(item.id)}
+                          onChange={(event) =>
+                            setBatchSelection((current) => {
+                              const next = new Set(current);
+                              if (event.target.checked) next.add(item.id);
+                              else next.delete(item.id);
+                              return next;
+                            })
+                          }
+                        />
+                      )}
+                      <button
+                        className={`profile-card${selected?.id === item.id ? " is-selected" : ""}`}
+                        aria-label={`选择配置 ${item.name}`}
+                        aria-pressed={selected?.id === item.id}
+                        onClick={() => {
+                          cancelReading();
+                          setSelectedId(item.id);
+                          setOperationError("");
+                        }}
+                      >
+                        <span className="profile-card-top">
+                          <span className="profile-file-icon">
+                            {item.sourceUrl ? (
+                              <Globe2 size={20} />
+                            ) : (
+                              <FileCode2 size={20} />
+                            )}
+                          </span>
+                          <span className="profile-card-name">{item.name}</span>
+                          {selected?.id === item.id && <Check size={17} />}
+                        </span>
+                        <span className="profile-card-description">
+                          {item.description ||
+                            (item.sourceUrl
+                              ? "来自远程配置地址"
+                              : "本地 YAML 配置")}
+                        </span>
+                        <span className="profile-card-meta">
+                          <span>
+                            {item.sourceUrl ? "URL" : "本地"} ·{" "}
+                            {bytes(
+                              new TextEncoder().encode(item.content).byteLength,
+                            )}
+                          </span>
+                          <span>
+                            {new Date(item.updatedAt).toLocaleDateString(
+                              "zh-CN",
+                            )}
+                          </span>
+                        </span>
+                        {recent && (
+                          <span className="profile-card-applied">
+                            <CheckCircle2 size={12} />
+                            本会话最近应用
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })
               )}
-              {lastApplied && applied && (
-                <div className="profile-applied">
-                  <CheckCircle2 size={14} />
-                  本会话最近应用 · {dateText(applied.appliedAt)}
+            </section>
+            {selected && (
+              <section className="profile-detail" aria-label="配置详情">
+                <div className="profile-detail-heading">
+                  <div>
+                    <span className="profile-eyebrow">
+                      {selected.sourceUrl ? "远程来源 · 手动更新" : "本地配置"}
+                    </span>
+                    <h2>{selected.name}</h2>
+                  </div>
+                  <button
+                    className="button primary"
+                    disabled={coreBusy}
+                    title={
+                      coreBusy
+                        ? "等待当前内核操作完成"
+                        : connected
+                          ? "应用此完整配置"
+                          : "应用并启动第一份托管配置"
+                    }
+                    onClick={() => void prepareApplication(selected)}
+                  >
+                    <Play size={15} />
+                    应用配置
+                  </button>
                 </div>
-              )}
-              <dl className="profile-metadata">
-                <div>
-                  <dt>保存时间</dt>
-                  <dd>{dateText(selected.updatedAt)}</dd>
-                </div>
-                <div>
-                  <dt>原文大小</dt>
-                  <dd>
-                    {bytes(
-                      new TextEncoder().encode(selected.content).byteLength,
-                    )}{" "}
-                    · {selected.content.split(/\r?\n/).length} 行
-                  </dd>
-                </div>
-                {selected.sourceUrl && (
-                  <div className="profile-source">
-                    <dt>来源</dt>
-                    <dd>{selected.sourceUrl}</dd>
+                {selected.description && (
+                  <p className="profile-description">{selected.description}</p>
+                )}
+                {lastApplied && applied && (
+                  <div className="profile-applied">
+                    <CheckCircle2 size={14} />
+                    本会话最近应用 · {dateText(applied.appliedAt)}
                   </div>
                 )}
-              </dl>
-              <div className="profile-actions">
-                <button
-                  className="button small"
-                  onClick={() => openEnhancement("profile")}
-                >
-                  <SlidersHorizontal size={14} />
-                  配置增强
-                </button>
-                <button
-                  className="button small"
-                  onClick={() => openEditor(fromProfile(selected))}
-                >
-                  <Edit3 size={14} />
-                  编辑原文
-                </button>
-                <button
-                  className="button small"
-                  onClick={() =>
-                    openEditor({
-                      ...fromProfile(selected),
-                      id: undefined,
-                      original: undefined,
-                      name: `${selected.name} 副本`,
-                    })
-                  }
-                >
-                  <Copy size={14} />
-                  另存副本
-                </button>
-                <button
-                  className="button small"
-                  onClick={() =>
-                    downloadContent(selected.name, selected.content)
-                  }
-                >
-                  <Download size={14} />
-                  下载原文
-                </button>
-                {selected.sourceUrl && (
+                <dl className="profile-metadata">
+                  <div>
+                    <dt>保存时间</dt>
+                    <dd>{dateText(selected.updatedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>原文大小</dt>
+                    <dd>
+                      {bytes(
+                        new TextEncoder().encode(selected.content).byteLength,
+                      )}{" "}
+                      · {selected.content.split(/\r?\n/).length} 行
+                    </dd>
+                  </div>
+                  {selected.sourceUrl && (
+                    <div className="profile-source">
+                      <dt>来源</dt>
+                      <dd>{selected.sourceUrl}</dd>
+                    </div>
+                  )}
+                </dl>
+                <div className="profile-actions">
                   <button
                     className="button small"
-                    disabled={fetching}
-                    onClick={() => void readSource(selected)}
+                    onClick={() => openEnhancement("profile")}
                   >
-                    <RefreshCw size={14} />
-                    从来源更新
+                    <SlidersHorizontal size={14} />
+                    配置增强
                   </button>
+                  <button
+                    className="button small"
+                    onClick={() => openEditor(fromProfile(selected))}
+                  >
+                    <Edit3 size={14} />
+                    编辑原文
+                  </button>
+                  <button
+                    className="button small"
+                    onClick={() =>
+                      openEditor({
+                        ...fromProfile(selected),
+                        id: undefined,
+                        original: undefined,
+                        name: `${selected.name} 副本`,
+                      })
+                    }
+                  >
+                    <Copy size={14} />
+                    另存副本
+                  </button>
+                  <button
+                    className="button small"
+                    onClick={() =>
+                      downloadContent(selected.name, selected.content)
+                    }
+                  >
+                    <Download size={14} />
+                    下载原文
+                  </button>
+                  {selected.sourceUrl && (
+                    <button
+                      className="button small"
+                      disabled={fetching}
+                      onClick={() => void readSource(selected)}
+                    >
+                      <RefreshCw size={14} />
+                      从来源更新
+                    </button>
+                  )}
+                  <button
+                    className="icon-button profile-delete"
+                    aria-label="删除配置"
+                    title="删除配置"
+                    onClick={() => {
+                      cancelReading();
+                      setOperationError("");
+                      setDeleteTarget(selected);
+                    }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <div className="profile-order-bar">
+                  <span>
+                    {query.trim()
+                      ? "清空搜索后可调整列表顺序"
+                      : `列表顺序 ${selectedIndex + 1} / ${library.profiles.length}`}
+                  </span>
+                  <button
+                    className="icon-button"
+                    aria-label={`上移配置 ${selected.name}`}
+                    title={query.trim() ? "清空搜索后调整顺序" : "上移配置"}
+                    disabled={
+                      selectedIndex <= 0 || !!query.trim() || !!library.error
+                    }
+                    onClick={() => moveSelected("up")}
+                  >
+                    <ArrowUp size={15} />
+                  </button>
+                  <button
+                    className="icon-button"
+                    aria-label={`下移配置 ${selected.name}`}
+                    title={query.trim() ? "清空搜索后调整顺序" : "下移配置"}
+                    disabled={
+                      selectedIndex < 0 ||
+                      selectedIndex >= library.profiles.length - 1 ||
+                      !!query.trim() ||
+                      !!library.error
+                    }
+                    onClick={() => moveSelected("down")}
+                  >
+                    <ArrowDown size={15} />
+                  </button>
+                </div>
+                <pre
+                  className="profile-code"
+                  tabIndex={0}
+                  aria-label="配置原文"
+                >
+                  {selectedRender?.text ?? selected.content}
+                </pre>
+                {selectedRender?.truncated && (
+                  <p className="profile-footnote">
+                    原文过大，已截断显示前 {PROFILE_RENDER_MAX_LINES} 行 / 共{" "}
+                    {selectedRender.totalLines}
+                    行；完整原文可通过“下载原文”获取。
+                  </p>
                 )}
-                <button
-                  className="icon-button profile-delete"
-                  aria-label="删除配置"
-                  title="删除配置"
-                  onClick={() => {
-                    cancelReading();
-                    setOperationError("");
-                    setDeleteTarget(selected);
-                  }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-              <div className="profile-order-bar">
-                <span>
-                  {query.trim()
-                    ? "清空搜索后可调整列表顺序"
-                    : `列表顺序 ${selectedIndex + 1} / ${library.profiles.length}`}
-                </span>
-                <button
-                  className="icon-button"
-                  aria-label={`上移配置 ${selected.name}`}
-                  title={query.trim() ? "清空搜索后调整顺序" : "上移配置"}
-                  disabled={
-                    selectedIndex <= 0 || !!query.trim() || !!library.error
-                  }
-                  onClick={() => moveSelected("up")}
-                >
-                  <ArrowUp size={15} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={`下移配置 ${selected.name}`}
-                  title={query.trim() ? "清空搜索后调整顺序" : "下移配置"}
-                  disabled={
-                    selectedIndex < 0 ||
-                    selectedIndex >= library.profiles.length - 1 ||
-                    !!query.trim() ||
-                    !!library.error
-                  }
-                  onClick={() => moveSelected("down")}
-                >
-                  <ArrowDown size={15} />
-                </button>
-              </div>
-              <pre className="profile-code" tabIndex={0} aria-label="配置原文">
-                {selectedRender?.text ?? selected.content}
-              </pre>
-              {selectedRender?.truncated && (
                 <p className="profile-footnote">
-                  原文过大，已截断显示前 {PROFILE_RENDER_MAX_LINES} 行 / 共{" "}
-                  {selectedRender.totalLines}
-                  行；完整原文可通过“下载原文”获取。
+                  选中配置后才可应用；“最近应用”记录本次连接会话中的操作。
                 </p>
-              )}
-              <p className="profile-footnote">
-                选中配置后才可应用；“最近应用”记录本次连接会话中的操作。
-              </p>
-            </section>
-          )}
-        </div>
-      )}
+              </section>
+            )}
+          </div>
+        )}
+      </section>
+
+      <div className="profiles-support-grid">
+        <SubscriptionManager
+          profiles={library.profiles}
+          onProfilesChanged={() => refreshLibrary()}
+        />
+        <MixinManager
+          selected={selected}
+          onProfilesChanged={() => refreshLibrary()}
+        />
+      </div>
 
       {importPreview && (
         <Modal
@@ -1636,7 +1653,7 @@ function SessionProfiles() {
           description={
             draft.fromSource
               ? "来源的新原文已载入草稿。保存到配置库后，可另行确认应用到内核。"
-              : "保留 YAML 原文和注释。保存到浏览器后，可选择应用到内核。"
+              : "保留 YAML 原文和注释。保存到配置库后，可选择应用到内核。"
           }
           wide
           onClose={closeEditor}
@@ -1748,7 +1765,11 @@ function SessionProfiles() {
               >
                 取消
               </button>
-              <button type="submit" className="button primary" disabled={saving}>
+              <button
+                type="submit"
+                className="button primary"
+                disabled={saving}
+              >
                 {saving ? <Spinner /> : <Save size={15} />}
                 {saving ? "保存中…" : "保存配置"}
               </button>

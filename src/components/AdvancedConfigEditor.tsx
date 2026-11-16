@@ -16,9 +16,14 @@ import type { JsonValue } from "../lib/types";
 import { Toggle } from "./ui";
 import "./advanced-config-editor.css";
 
+export type AdvancedConfigSection =
+  "base" | "inbound" | "performance" | "dns" | "sniffer" | "geo" | "providers";
+
 interface AdvancedConfigEditorProps {
   content: string;
   onChange: (content: string) => void;
+  section?: AdvancedConfigSection;
+  flat?: boolean;
 }
 
 type Path = readonly string[];
@@ -105,6 +110,8 @@ const providerPaths: Path[] = [["rule-providers"]];
 export function AdvancedConfigEditor({
   content,
   onChange,
+  section,
+  flat = false,
 }: AdvancedConfigEditorProps) {
   const parsed = useMemo(() => {
     try {
@@ -160,7 +167,10 @@ export function AdvancedConfigEditor({
   if (parsed.error)
     return (
       <div className="advanced-config-error" role="alert">
-        当前 Merge 原文无法结构化编辑：{parsed.error}。请切回“原文”修复后重试。
+        当前 Merge 无法结构化编辑：{parsed.error}。
+        {section === undefined
+          ? "请切回“原文”修复后重试。"
+          : "请到“配置”页检查对应内容后重试。"}
       </div>
     );
 
@@ -175,10 +185,13 @@ export function AdvancedConfigEditor({
       </div>
 
       <Section
+        id="base"
         title="基础"
         count={count(basePaths)}
         onClear={() => clear(basePaths)}
         open
+        activeSection={section}
+        flat={flat}
       >
         <SelectField
           config={config}
@@ -245,9 +258,12 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="inbound"
         title="入站与认证"
         count={count(inboundPaths)}
         onClear={() => clear(inboundPaths)}
+        activeSection={section}
+        flat={flat}
       >
         <TextField
           config={config}
@@ -294,9 +310,12 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="performance"
         title="性能与兼容"
         count={count(performancePaths)}
         onClear={() => clear(performancePaths)}
+        activeSection={section}
+        flat={flat}
       >
         <BooleanField
           config={config}
@@ -366,9 +385,12 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="dns"
         title="DNS"
         count={count(dnsPaths)}
         onClear={() => clear(dnsPaths)}
+        activeSection={section}
+        flat={flat}
       >
         <BooleanField
           config={config}
@@ -528,9 +550,12 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="sniffer"
         title="Sniffer"
         count={count(snifferPaths)}
         onClear={() => clear(snifferPaths)}
+        activeSection={section}
+        flat={flat}
       >
         <BooleanField
           config={config}
@@ -593,9 +618,12 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="geo"
         title="缓存与 GeoX"
         count={count(geoPaths)}
         onClear={() => clear(geoPaths)}
+        activeSection={section}
+        flat={flat}
       >
         <BooleanField
           config={config}
@@ -665,8 +693,11 @@ export function AdvancedConfigEditor({
       </Section>
 
       <Section
+        id="providers"
         title="Rule Provider"
         count={count(providerPaths)}
+        activeSection={section}
+        flat={flat}
         onClear={() => {
           setProviderDraft(null);
           setProviderError("");
@@ -766,18 +797,55 @@ function MappingField(props: FieldProps & { help: string }) {
 }
 
 function Section({
+  id,
   title,
   count,
   onClear,
   open = false,
+  activeSection,
+  flat = false,
   children,
 }: {
+  id: AdvancedConfigSection;
   title: string;
   count: number;
   onClear: () => void;
   open?: boolean;
+  activeSection?: AdvancedConfigSection;
+  flat?: boolean;
   children: ReactNode;
 }) {
+  if (activeSection !== undefined && activeSection !== id) return null;
+
+  const body = (
+    <>
+      {count > 0 && (
+        <div className="advanced-config-section-tools">
+          <span>本节有 {count} 项会覆盖原配置</span>
+          <button className="button small" type="button" onClick={onClear}>
+            清除本节覆盖
+          </button>
+        </div>
+      )}
+      <div className="advanced-config-grid">{children}</div>
+    </>
+  );
+
+  if (activeSection !== undefined || flat)
+    return (
+      <section
+        id={flat ? `kernel-section-${id}` : undefined}
+        className="advanced-config-section advanced-config-section-flat"
+        aria-labelledby={`advanced-config-${id}-heading`}
+      >
+        <div className="advanced-config-section-heading">
+          <h2 id={`advanced-config-${id}-heading`}>{title}</h2>
+          {count > 0 && <small>{count} 项覆盖</small>}
+        </div>
+        {body}
+      </section>
+    );
+
   return (
     <details className="advanced-config-section" open={open}>
       <summary>
@@ -785,17 +853,7 @@ function Section({
         {count > 0 && <small>{count} 项覆盖</small>}
         <ChevronDown size={15} />
       </summary>
-      <div className="advanced-config-section-body">
-        {count > 0 && (
-          <div className="advanced-config-section-tools">
-            <span>本节有 {count} 项会覆盖原配置</span>
-            <button className="button small" type="button" onClick={onClear}>
-              清除本节覆盖
-            </button>
-          </div>
-        )}
-        <div className="advanced-config-grid">{children}</div>
-      </div>
+      <div className="advanced-config-section-body">{body}</div>
     </details>
   );
 }

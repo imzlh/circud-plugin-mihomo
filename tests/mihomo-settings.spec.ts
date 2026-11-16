@@ -11,6 +11,11 @@ const enhancement = {
   },
 };
 
+const settingsArea = (page: Page, name: RegExp) =>
+  page
+    .getByRole("navigation", { name: "内核设置分类" })
+    .getByRole("button", { name });
+
 async function liveManager(page: Page) {
   let revision = 7;
   let current = structuredClone(enhancement);
@@ -107,29 +112,24 @@ test("Mihomo settings are first-class navigation and persist global merge with C
   const api = await liveManager(page);
   await page.goto("./#/mihomo-settings");
 
-  await expect(page.getByRole("link", { name: "Mihomo 设置" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "全局内核配置" }),
-  ).toBeVisible();
-  await expect(page.getByText("DNS", { exact: true })).toBeVisible();
-  await expect(page.getByText("1 项覆盖", { exact: true })).toBeVisible();
-  await expect(page.getByText("Sniffer", { exact: true })).toBeVisible();
-  await expect(page.getByText("缓存与 GeoX", { exact: true })).toBeVisible();
-  await expect(page.getByText("Rule Provider", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await expect(page.getByRole("link", { name: "内核设置" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "基础" })).toBeVisible();
+  await settingsArea(page, /^DNS/).click();
+  await expect(page.getByRole("heading", { name: "DNS" })).toBeVisible();
+  await expect(page.getByText("本节有 1 项会覆盖原配置")).toBeVisible();
+  await expect(page.getByRole("button", { name: "YAML 原文" })).toHaveCount(0);
+  await settingsArea(page, /^路由器接管/).click();
   await expect(page.getByRole("region", { name: "路由器服务" })).toBeVisible();
-  await page.getByRole("tab", { name: /内核参数/ }).click();
+  await settingsArea(page, /^基础/).click();
 
   await page.getByRole("switch", { name: "启用全局内核配置" }).click();
   await page.getByRole("switch", { name: "覆盖 运行模式" }).click();
   await page.getByLabel("运行模式", { exact: true }).selectOption("global");
   await expect(page.getByText("有未保存修改", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("tab", { name: /内核参数.*未保存/ }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "保存 Mihomo 设置" }).click();
+  await expect(settingsArea(page, /基础.*未保存/)).toBeVisible();
+  await page.getByRole("button", { name: "保存内核设置" }).click();
 
-  await expect(page.getByText("Mihomo 设置已保存 · revision 8")).toBeVisible();
+  await expect(page.getByText("内核设置已保存 · revision 8")).toBeVisible();
   expect(api.writes).toHaveLength(1);
   expect(api.writes[0]).toMatchObject({
     expectedRevision: 7,
@@ -167,9 +167,9 @@ test("Mihomo settings keep the full form visible when Manager is unavailable", a
   ).toBeVisible();
   await expect(page.getByLabel("运行模式", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "保存 Mihomo 设置" }),
+    page.getByRole("button", { name: "保存内核设置" }),
   ).toBeDisabled();
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await settingsArea(page, /^路由器接管/).click();
   await expect(page.getByLabel("接管模式", { exact: true })).toBeVisible();
   await expect(
     page.getByLabel("路由器来源 ACL", { exact: true }),
@@ -179,24 +179,39 @@ test("Mihomo settings keep the full form visible when Manager is unavailable", a
   ).toBeDisabled();
 });
 
-test("enabled global settings reject invalid YAML without losing the draft", async ({
+test("structured mappings reject invalid YAML without losing the draft", async ({
   page,
 }) => {
   const api = await liveManager(page);
   await page.goto("./#/mihomo-settings");
   await page.getByRole("switch", { name: "启用全局内核配置" }).click();
-  await page.getByRole("button", { name: "YAML 原文" }).click();
-  await page.getByLabel("全局 Merge YAML").fill("dns: [\n");
-  await page.getByRole("button", { name: "保存 Mihomo 设置" }).click();
+  await settingsArea(page, /^DNS/).click();
+  await page.getByRole("switch", { name: "覆盖 Nameserver Policy" }).click();
+  await page.getByLabel("Nameserver Policy", { exact: true }).fill("dns: [\n");
+  await page.getByRole("button", { name: "写入 Nameserver Policy" }).click();
 
-  await expect(page.getByRole("alert")).toContainText("全局 Merge YAML 无效");
-  await expect(page.getByLabel("全局 Merge YAML")).toHaveValue("dns: [\n");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByLabel("Nameserver Policy", { exact: true }),
+  ).toHaveValue("dns: [\n");
   expect(api.writes).toEqual([]);
 
-  await page.getByRole("button", { name: "放弃修改" }).click();
-  await expect(page.getByLabel("全局 Merge YAML")).toHaveValue(
-    enhancement.merge.content,
+  await page
+    .getByRole("region", { name: "全局内核配置" })
+    .getByRole("button", { name: "放弃修改" })
+    .click();
+  await settingsArea(page, /^基础/).click();
+  await expect(page.getByLabel("运行模式", { exact: true })).toHaveValue(
+    "rule",
   );
+});
+
+test("kernel settings do not expose a raw YAML editor", async ({ page }) => {
+  await liveManager(page);
+  await page.goto("./#/mihomo-settings");
+
+  await expect(page.getByText("YAML 原文", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("全局 Merge YAML")).toHaveCount(0);
 });
 
 test("network actions cannot apply stale policy while a draft is unsaved", async ({
@@ -204,12 +219,10 @@ test("network actions cannot apply stale policy while a draft is unsaved", async
 }) => {
   await liveManager(page);
   await page.goto("./#/mihomo-settings");
-  await page.getByRole("tab", { name: /路由器接管/ }).click();
+  await settingsArea(page, /^路由器接管/).click();
   const manager = page.getByRole("region", { name: "路由器服务" });
   await manager.getByLabel("接管模式", { exact: true }).selectOption("tproxy");
-  await expect(
-    page.getByRole("tab", { name: /路由器接管.*未保存/ }),
-  ).toBeVisible();
+  await expect(settingsArea(page, /路由器接管.*未保存/)).toBeVisible();
 
   await expect(manager.getByRole("button", { name: "启用" })).toBeDisabled();
   await expect(

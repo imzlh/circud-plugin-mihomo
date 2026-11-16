@@ -1,6 +1,29 @@
 .mixin-manager {
   padding: 16px;
 }
+.profiles-support-grid > .mixin-manager {
+  padding: 28px 0 30px;
+}
+.profiles-support-grid > .mixin-manager .mixin-title-line strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+.profiles-support-grid > .mixin-manager .mixin-title-line > svg {
+  width: 17px;
+  height: 17px;
+}
+.profiles-support-grid > .mixin-manager .mixin-heading p {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.profiles-support-grid > .mixin-manager .mixin-empty {
+  padding: 18px 0 2px;
+  font-size: 12px;
+}
+.profiles-support-grid > .mixin-manager .mixin-chain {
+  margin-top: 18px;
+  border-radius: 6px;
+}
 .mixin-heading,
 .mixin-title-line,
 .mixin-resource,
