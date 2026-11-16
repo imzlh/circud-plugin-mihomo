@@ -2,14 +2,14 @@ import {
   runtimePaths,
   type Envelope,
   type JsonObject,
-} from "../files/usr/lib/io.cno.mihomo/runtime.ts";
+} from "../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/runtime.ts";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const runner =
   runtimePaths(Deno.cwd()).root === "/"
     ? "/usr/lib/io.cno.mihomo/script-runner.ts"
-    : `${Deno.cwd()}/openwrt/files/usr/lib/io.cno.mihomo/script-runner.ts`;
+    : `${Deno.cwd()}/openwrt/cno-mihomo-companion/files/usr/lib/io.cno.mihomo/script-runner.ts`;
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition)

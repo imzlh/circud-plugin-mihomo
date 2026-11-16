@@ -16,7 +16,7 @@ The build produces compiler development assets:
 - `dist/profile-compiler.js`: bundled compiler and public protocol exports;
 - `dist/cno-script-runner.js`: protocol-compatible runner used by compiler
   tests. The OpenWrt package installs its reviewed production runner from
-  `openwrt/files/usr/lib/io.cno.mihomo/script-runner.ts`.
+  `openwrt/cno-mihomo-companion/files/usr/lib/io.cno.mihomo/script-runner.ts`.
 
 See `HOST_CONTRACT.md` before wiring the companion process into circud. Merge
 and Seq execute in the package compiler. Script stages use the one-request CNO

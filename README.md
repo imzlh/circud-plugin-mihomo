@@ -128,7 +128,7 @@ preview 返回 compiler revision、content hash、最终 YAML、阶段记录和�
 - `src/`：React UI 与同源 Manager/Controller 客户端；
 - `compiler/`：权威 profile compiler 和 one-shot Script runner 协议；
 - `package/`：circud package 后端；
-- `openwrt/`：companion OpenWrt package、procd、hotplug、fw4 include；
+- `openwrt/cno-mihomo-companion/`：companion OpenWrt package、procd、hotplug、fw4 include；
 - `tests/`：Vitest、Node package tests 与 Playwright；
 - `api.md`：Manager API 和 bridge 契约。
 

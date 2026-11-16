@@ -1,11 +1,11 @@
-import { Application } from "../files/usr/lib/io.cno.mihomo/daemon.ts";
-import { NetworkManager } from "../files/usr/lib/io.cno.mihomo/network.ts";
+import { Application } from "../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/daemon.ts";
+import { NetworkManager } from "../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/network.ts";
 import {
   ensureDirectories,
   runtimePaths,
   type Envelope,
   type JsonObject,
-} from "../files/usr/lib/io.cno.mihomo/runtime.ts";
+} from "../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/runtime.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition)

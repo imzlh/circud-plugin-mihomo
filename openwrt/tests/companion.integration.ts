@@ -1,11 +1,15 @@
-import { Application } from '../files/usr/lib/io.cno.mihomo/daemon.ts';
-import { runtimePaths, type Envelope, type JsonObject } from '../files/usr/lib/io.cno.mihomo/runtime.ts';
+import { Application } from '../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/daemon.ts';
+import {
+  runtimePaths,
+  type Envelope,
+  type JsonObject,
+} from '../cno-mihomo-companion/files/usr/lib/io.cno.mihomo/runtime.ts';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const repoRoot = Deno.cwd();
-const daemonEntry = `${repoRoot}/openwrt/files/usr/lib/io.cno.mihomo/daemon.ts`;
-const ctlEntry = `${repoRoot}/openwrt/files/usr/lib/io.cno.mihomo/ctl.ts`;
+const daemonEntry = `${repoRoot}/openwrt/cno-mihomo-companion/files/usr/lib/io.cno.mihomo/daemon.ts`;
+const ctlEntry = `${repoRoot}/openwrt/cno-mihomo-companion/files/usr/lib/io.cno.mihomo/ctl.ts`;
 const cno = Deno.execPath();
 
 interface ChildCapture {
