@@ -78,7 +78,7 @@ jobs:
         env:
           ARCH: x86_64-${{ matrix.sdk_branch }}
           BUILD_LOG: 1
-          FEEDNAME: cno-mihomo
+          FEEDNAME: cno_mihomo
           INDEX: 0
           PACKAGES: cno-mihomo-companion
           V: s
